@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Rocket } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { Input } from '../components/ui/Input'
-import { Button } from '../components/ui/Button'
+import { HunterstellarLogo } from '../components/HunterstellarLogo'
 
 export default function Login() {
   const { login } = useAuth()
@@ -32,30 +30,46 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex items-center justify-center px-6">
-      <div className="w-full max-w-sm flex flex-col items-center">
-        <Rocket className="w-10 h-10 text-accent mb-4" strokeWidth={1.5} />
-        <h1 className="text-2xl font-semibold text-text-primary mb-6">ODYSSEY</h1>
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="relative w-full max-w-[412px] h-screen sm:h-[917px] bg-bg flex flex-col overflow-hidden border-x sm:border border-surface-alt shadow-2xl">
+        <div className="flex-1 flex flex-col items-center bg-bg px-6 pt-16">
+          <div className="flex flex-col items-center gap-16 w-full max-w-sm">
+            <HunterstellarLogo width={240} />
 
-        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
-          <Input
-            label="Team Name"
-            value={teamName}
-            onChange={(e) => setTeamName(e.target.value)}
-            placeholder="Enter your team name"
-          />
-          <Input
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter your password"
-          />
-          {error && <p className="text-sm text-red text-center">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Launching...' : 'Launch'}
-          </Button>
-        </form>
+            <form onSubmit={handleSubmit} className="w-full flex flex-col gap-7">
+              <p className="text-text-primary text-center text-lg leading-snug">
+                Enter your Crew Identifier
+              </p>
+
+              <div className="flex flex-col gap-6">
+                <input
+                  type="text"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder="Crew Name"
+                  className="w-full h-[60px] bg-surface border border-surface-alt rounded-md px-5 text-text-primary text-base placeholder:text-text-muted outline-none focus:border-accent"
+                />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Access Code"
+                  className="w-full h-[60px] bg-surface border border-surface-alt rounded-md px-5 text-text-primary text-base placeholder:text-text-muted outline-none focus:border-accent"
+                />
+              </div>
+
+              {error && <p className="text-sm text-red text-center">{error}</p>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-[52px] bg-[#f6f6f6] text-text-inverse rounded-md font-display text-lg disabled:opacity-60"
+              >
+                {loading ? 'Decrypting...' : 'Join Team'}
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   )

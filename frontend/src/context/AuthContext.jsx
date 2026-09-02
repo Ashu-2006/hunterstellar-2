@@ -13,7 +13,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!token || user) return
+    if (!token ) return
     let cancelled = false
     async function load() {
       setLoading(true)
@@ -35,7 +35,7 @@ export function AuthProvider({ children }) {
     }
     load()
     return () => { cancelled = true }
-  }, [token, user])
+  }, [token])
 
   async function login(teamName, password) {
     const { data } = await api.post('/login', {
@@ -54,6 +54,7 @@ export function AuthProvider({ children }) {
     setUser(null)
     localStorage.removeItem('odyssey_token')
     localStorage.removeItem('odyssey_user')
+    localStorage.removeItem('hunterstellar_flow')
   }
 
   function updateUser(newUser) {

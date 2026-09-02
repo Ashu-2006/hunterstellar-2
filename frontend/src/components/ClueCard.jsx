@@ -1,35 +1,24 @@
 import { useState } from 'react'
-import { Card } from './ui/Card'
-import { CodeInput } from './ui/Input'
-import { Button } from './ui/Button'
 
-export function ClueCard({ clue, onSubmit, loading, error }) {
+export function ClueCard({ clue, cue, terminal = false, onSubmit, loading, error }) {
   const [code, setCode] = useState('')
-
   async function handleSubmit(e) {
     e.preventDefault()
     if (!code.trim()) return
     await onSubmit(code.trim())
     setCode('')
   }
-
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <p className="text-xs font-mono text-text-muted uppercase tracking-widest mb-4">Clue</p>
-      <p className="text-text-primary text-base leading-relaxed mb-6 whitespace-pre-line">{clue}</p>
-      <form onSubmit={handleSubmit} className="flex flex-col items-center gap-4">
-        <p className="text-sm text-text-muted">Enter the code at this celestial body:</p>
-        <CodeInput
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="_ _ _ _ _ _"
-          error={error}
-          disabled={loading}
-        />
-        <Button type="submit" className="w-full" disabled={loading || !code.trim()}>
-          {loading ? 'Verifying...' : 'Submit Code'}
-        </Button>
+    <div className="w-full flex flex-col gap-8 px-6 pt-2">
+      <div className="flex flex-col gap-5">
+        <h2 className="font-display text-xl text-text-secondary tracking-widest">{terminal ? 'The Null Void' : 'Station Computer'}</h2>
+        <p className="text-text-secondary text-[17px] leading-relaxed whitespace-pre-line">{clue}</p>
+      </div>
+      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5">
+        <input value={code} onChange={(e) => setCode(e.target.value)} placeholder={terminal ? 'Enter the Void code' : 'Enter the station code'} className="w-full h-[60px] bg-surface border border-surface-alt rounded-md px-5 text-text-primary text-base placeholder:text-text-muted outline-none focus:border-accent" />
+        {error && <p role="alert" className="text-sm text-red text-center">{error}</p>}
+        <button type="submit" disabled={loading || !code.trim()} className="w-full h-[52px] bg-[#f6f6f6] text-text-inverse rounded-md font-display text-lg disabled:opacity-60">{loading ? 'Decrypting...' : cue || 'Decrypt Signal'}</button>
       </form>
-    </Card>
+    </div>
   )
 }

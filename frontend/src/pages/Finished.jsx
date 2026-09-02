@@ -1,19 +1,30 @@
-import { Trophy } from 'lucide-react'
 import { Layout } from '../components/Layout'
+import { HunterstellarLogo } from '../components/HunterstellarLogo'
 
 export default function Finished() {
   return (
-    <Layout>
+    <Layout title="The Anomaly">
       <div className="flex-1 flex items-center justify-center px-6 py-16">
-        <div className="bg-surface border border-surface-alt rounded-lg p-8 max-w-sm w-full flex flex-col items-center text-center shadow-[0_1px_3px_rgba(0,0,0,0.3)]">
-          <Trophy className="w-16 h-16 text-green mb-4" strokeWidth={1.5} />
-          <h1 className="text-2xl font-semibold text-text-primary mb-2">MISSION COMPLETE</h1>
-          <p className="text-text-secondary text-sm leading-relaxed mb-4">
-            You navigated all 5 celestial bodies.
-          </p>
-          <p className="text-text-muted text-sm">
-            Proceed to L104 for case study.
-          </p>
+        <div className="w-full flex flex-col items-center text-center gap-6">
+          <HunterstellarLogo width={240} className="mb-2" />
+          <h1 className="font-grotesk font-bold text-3xl text-[#FFD6A0]">THE PULSE IS FIRED</h1>
+          <div className="flex flex-col gap-3 text-left">
+            <p className="text-text-secondary text-[17px] leading-relaxed">
+              You entered the Null Void, set the coordinates, and fired the tachyon pulse meant to
+              cure the Vacuum Decay. All four fragments at once — the data whole, the aim true.
+            </p>
+            <p className="text-accent text-[17px] leading-relaxed font-medium">
+              The Cure was the cause. The gamma-ray burst that seeded this hunt was your own.
+            </p>
+            <p className="text-text-secondary text-[17px] leading-relaxed">
+              The mission was never to undo someone else’s mistake. It was to complete the loop you
+              were about to start — the pulse that scattered the fragments across the four data
+              centers, and the burst that hurled your younger selves toward this very hunt.
+            </p>
+            <p className="text-text-muted text-[17px] leading-relaxed">
+              You did not fix history. You wrote it — as it was always meant to be written.
+            </p>
+          </div>
         </div>
       </div>
     </Layout>

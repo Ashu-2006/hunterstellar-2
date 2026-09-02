@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Rocket, Play, Square, Megaphone, Unlock, MessageSquare } from 'lucide-react'
 import api from '../api/client'
-import supabase from '../supabaseClient'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Input } from '../components/ui/Input'
-
+import supabase from '../supabaseClient'
 export default function Admin() {
   const [teams, setTeams] = useState([])
   const [selected, setSelected] = useState(null)
@@ -22,29 +21,34 @@ export default function Admin() {
         headers: { 'x-admin-secret': adminSecret },
       })
       setTeams(data.teams)
-    } catch {
-      // silent
+    } catch (error) {
+      console.error('Failed to fetch teams:', error)
+      setTeams([])
     }
   }, [adminSecret])
 
   useEffect(() => {
-    if (!authenticated || !supabase) return
+    if (!authenticated) return
 
+    // MEMOIZED Supabase realtime channel (only created once)
     const channel = supabase
-      .channel('admin-teams')
+      .channel('admin-teams-changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'teams' },
-        () => {
+        { event: 'UPDATE', schema: 'public', table: 'teams' },
+        (payload) => {
           fetchTeams()
         },
       )
       .subscribe()
 
+    fetchTeams()
+    const interval = setInterval(fetchTeams, 5000)
     return () => {
       supabase.removeChannel(channel)
+      clearInterval(interval)
     }
-  }, [authenticated, fetchTeams])
+  }, [authenticated]) // only re-run when auth changes, not on every render
 
   async function handleAuth(e) {
     e.preventDefault()

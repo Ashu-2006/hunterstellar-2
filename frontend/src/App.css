@@ -1,47 +1,38 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0F172A;
-  --color-surface: #1E293B;
-  --color-surface-alt: #334155;
-  --color-border: #475569;
+  --color-bg: #262626;
+  --color-surface: #1C1C1C;
+  --color-surface-alt: #2B2B2B;
+  --color-border: #3A3A3A;
 
-  --color-text-primary: #F8FAFC;
-  --color-text-secondary: #CBD5E1;
-  --color-text-muted: #64748B;
-  --color-text-inverse: #0F172A;
+  --color-text-primary: #f6f6f6;
+  --color-text-secondary: #d9d9d9;
+  --color-text-muted: #9c9c9c;
+  --color-text-inverse: #100f0d;
 
-  --color-accent: #3B82F6;
-  --color-accent-hover: #2563EB;
-  --color-accent-active: #1D4ED8;
-  --color-indigo: #6366F1;
+  --color-accent: #38BDF8;
+  --color-accent-hover: #0EA5E9;
+  --color-accent-active: #0284C7;
+  --color-nav-active: #12304F;
+  --color-teal: #2DD4BF;
+  --color-teal-muted: #5EA9A2;
 
-  --color-green: #22C55E;
+  --color-rust: #FB8C3A;
+  --color-void-gold: #FFD6A0;
+  --color-green: #10B981;
   --color-red: #EF4444;
-  --color-red-hover: #DC2626;
   --color-amber: #F59E0B;
 
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Roboto', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-grotesk: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-bebas: 'Bebas Neue', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-4px); }
-  40% { transform: translateX(4px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(4px); }
-}
-
-.shake {
-  animation: shake 200ms ease;
 }
 
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
-.animate-fadeIn {
-  animation: fadeIn 200ms ease;
-}
+.animate-fadeIn { animation: fadeIn 200ms ease; }

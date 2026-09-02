@@ -1,35 +1,24 @@
 import { useState } from 'react'
-import { Card } from './ui/Card'
-import { Input } from './ui/Input'
-import { Button } from './ui/Button'
 
 export function PuzzleCard({ question, onSubmit, loading, error }) {
   const [answer, setAnswer] = useState('')
-
   async function handleSubmit(e) {
     e.preventDefault()
     if (!answer.trim()) return
     await onSubmit(answer.trim())
     setAnswer('')
   }
-
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <p className="text-xs font-mono text-text-muted uppercase tracking-widest mb-4">Puzzle</p>
-      <p className="text-text-primary text-base leading-relaxed mb-6 whitespace-pre-line">{question}</p>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <Input
-          label="Enter your answer"
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          placeholder="Type your answer..."
-          error={error}
-          disabled={loading}
-        />
-        <Button type="submit" className="w-full" disabled={loading || !answer.trim()}>
-          {loading ? 'Verifying...' : 'Submit Answer'}
-        </Button>
+    <div className="w-full flex flex-col gap-8 px-6 pt-2">
+      <div className="flex flex-col gap-3">
+        <h2 className="font-display text-xl text-text-secondary tracking-widest">Challenge</h2>
+        <p className="text-text-secondary text-[17px] leading-relaxed">{question}</p>
+      </div>
+      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5">
+        <input value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Enter your answer here" className="w-full h-[60px] bg-surface border border-surface-alt rounded-md px-5 text-text-primary text-base placeholder:text-text-muted outline-none focus:border-accent" />
+        {error && <p role="alert" className="text-sm text-red text-center">{error}</p>}
+        <button type="submit" disabled={loading || !answer.trim()} className="w-full h-[52px] bg-[#f6f6f6] text-text-inverse rounded-md font-display text-lg disabled:opacity-60">{loading ? 'Verifying...' : 'Submit Answer'}</button>
       </form>
-    </Card>
+    </div>
   )
 }
