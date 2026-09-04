@@ -159,6 +159,28 @@ export default function Dashboard() {
     setSubmitError(`${described.title}. ${described.body}`)
   }
 
+  /**
+   * Take the state a POST just handed back, and resync `heldStage` with it.
+   *
+   * The resync is the load-bearing half. `holdingForTyping` exists to stop a
+   * poll from swapping the view out from under someone mid-typing, and it
+   * fires whenever `heldStage !== stage` while the input is dirty. But a wrong
+   * code deliberately leaves the input dirty (retyping a code that just cost
+   * you fifteen minutes is indefensible) while the stage flips to `locked`.
+   * Without this, that self-inflicted change looked exactly like a teammate's
+   * and the screen claimed "a teammate moved the crew forward" on top of the
+   * lockout the player had just earned themselves.
+   *
+   * Every branch below that adopts a server state goes through here, so the
+   * only changes left that can trigger the hold are the ones that genuinely
+   * came from somewhere else.
+   */
+  function adopt(next) {
+    if (!next) return
+    applyState(next)
+    setHeldStage(next.stage ?? null)
+  }
+
   /** Returns true when the submission succeeded, so inputs know to clear. */
   async function submit(path, payload, ctx) {
     if (!online) {
@@ -172,9 +194,8 @@ export default function Dashboard() {
 
       if (data.success) {
         // Trust the POST over the poll: it already describes the next stop.
-        applyState(data.state)
+        adopt(data.state)
         setInputDirty(false)
-        setHeldStage(data.state?.stage ?? null)
 
         if (typeof data.fragment_index === 'number') {
           persistFlow({ ...flow, pendingReveal: data.fragment_index })
@@ -185,7 +206,7 @@ export default function Dashboard() {
       if (data.reason === 'locked') {
         // No toast needed any more: the lockout screen replaces the whole body
         // and says so at full size.
-        if (data.state) applyState(data.state)
+        if (data.state) adopt(data.state)
         else refetch()
         return false
       }
@@ -193,20 +214,21 @@ export default function Dashboard() {
       if (data.reason === 'wrong_stage') {
         // Not an error: another member got there first. Both end up in the
         // right place, so say so plainly rather than showing a failure.
-        if (data.state) applyState(data.state)
+        if (data.state) adopt(data.state)
         setInputDirty(false)
-        setHeldStage(data.state?.stage ?? null)
         setToast('A teammate already submitted this one. You are both moved on.')
         return true
       }
 
       if (data.reason === 'finished') {
-        if (data.state) applyState(data.state)
+        if (data.state) adopt(data.state)
         return true
       }
 
       if (data.reason === 'wrong_code') {
-        if (data.state) applyState(data.state)
+        // The input keeps its value on purpose, so `inputDirty` stays true.
+        // `adopt` resyncs heldStage so this does not read as a teammate's move.
+        if (data.state) adopt(data.state)
         else refetch()
         return false
       }
