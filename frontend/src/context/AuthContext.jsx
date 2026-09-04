@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem(TOKEN_KEY, data.token)
       localStorage.setItem(USER_KEY, JSON.stringify(data.user))
     } catch {
-      /* private mode — the session still works for this tab */
+      /* private mode, and the session still works for this tab */
     }
     return data
   }, [])

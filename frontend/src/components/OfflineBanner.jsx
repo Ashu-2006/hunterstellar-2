@@ -15,8 +15,8 @@ export function OfflineBanner() {
       className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber/15 border-b border-amber/40 shrink-0"
     >
       <WifiOff className="w-3.5 h-3.5 text-amber shrink-0" />
-      <span className="text-[11px] text-amber">
-        Offline — showing your last clue. Submitting resumes when you reconnect.
+      <span className="text-[12px] text-amber">
+        Offline. Showing your last clue. Submitting resumes when you reconnect.
       </span>
     </div>
   )

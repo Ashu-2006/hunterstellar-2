@@ -30,7 +30,7 @@ export default function Finished() {
 
         {complete && (
           <div className="w-full rounded-md border border-void-gold/50 bg-void-gold/10 px-4 py-5 flex flex-col gap-3">
-            <span className="text-[11px] uppercase tracking-[0.3em] text-void-gold">
+            <span className="text-[12px] uppercase tracking-[0.3em] text-void-gold">
               Assembled transmission
             </span>
             <p className="text-void-gold text-[17px] leading-relaxed whitespace-pre-line">
@@ -43,8 +43,8 @@ export default function Finished() {
           <p className="text-accent text-[15px] font-medium">The final challenge is physical.</p>
           <p className="text-text-secondary text-sm leading-relaxed">
             Report to the marshals with your assembled transmission. The last problem is a
-            case study, solved in person — not in this app. Nothing further happens on this
-            screen.
+            case study, solved in person rather than in this app. Nothing further happens on
+            this screen.
           </p>
         </div>
 
@@ -65,7 +65,7 @@ export default function Finished() {
           See the standings
         </Link>
 
-        <p className="text-text-muted text-[11px] text-center">
+        <p className="text-text-muted text-[12px] text-center">
           Presented by <span className="font-semibold">ASTRONOMY &amp; PHYSICS SOCIETY</span>
         </p>
       </div>

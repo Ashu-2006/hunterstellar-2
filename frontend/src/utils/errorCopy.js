@@ -27,7 +27,7 @@ export function retryAfterSeconds(err) {
 
 /**
  * @param err   an axios error
- * @param ctx   'login' | 'clue' | 'question' | 'state' — tunes the wording
+ * @param ctx   'login' | 'clue' | 'question' | 'state'. Tunes the wording
  */
 export function describeError(err, ctx = 'state') {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {

@@ -65,27 +65,9 @@ export function StateView({
   return children
 }
 
-/**
- * Shown alongside content that is known to be out of date -- the team keeps
- * reading while we quietly reconnect.
+/*
+ * `StaleChip` used to live here. Staleness is now one entry in StatusSlot
+ * alongside the other four conditions that each used to own a full-width box,
+ * so a separate chip component would be a second way to say the same thing in
+ * a different place.
  */
-export function StaleChip({ lastUpdated, now, onRetry }) {
-  // `now` is passed in rather than read here: reading the clock during render
-  // is impure and makes the output non-deterministic for a given state.
-  const seconds = lastUpdated && now ? Math.round((now - lastUpdated) / 1000) : null
-  return (
-    <div className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md border border-amber/40 bg-amber/10">
-      <span className="text-[11px] text-amber">
-        {seconds != null ? `Last updated ${seconds}s ago · ` : ''}Reconnecting…
-      </span>
-      {onRetry && (
-        <button
-          onClick={onRetry}
-          className="text-[11px] text-amber underline cursor-pointer shrink-0"
-        >
-          Refresh
-        </button>
-      )}
-    </div>
-  )
-}

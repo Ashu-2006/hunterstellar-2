@@ -28,27 +28,34 @@ export default function Admin() {
   }, [adminSecret])
 
   useEffect(() => {
-    if (!authenticated) return
+    if (!authenticated || !supabase) return undefined
 
-    // MEMOIZED Supabase realtime channel (only created once)
+    // Realtime is a nudge to re-read, not a source of state: the payload is a
+    // raw `teams` row, so the list is always refetched rather than patched.
     const channel = supabase
       .channel('admin-teams-changes')
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'teams' },
-        (payload) => {
+        () => {
           fetchTeams()
         },
       )
       .subscribe()
 
-    fetchTeams()
+    // Deferred to a microtask so the first load is not a synchronous setState
+    // in the effect body, which cascades renders.
+    const kick = setTimeout(fetchTeams, 0)
     const interval = setInterval(fetchTeams, 5000)
+
     return () => {
       supabase.removeChannel(channel)
+      clearTimeout(kick)
       clearInterval(interval)
     }
-  }, [authenticated]) // only re-run when auth changes, not on every render
+    // `fetchTeams` is memoised on adminSecret, which cannot change while
+    // authenticated, so including it does not re-subscribe on every render.
+  }, [authenticated, fetchTeams])
 
   async function handleAuth(e) {
     e.preventDefault()

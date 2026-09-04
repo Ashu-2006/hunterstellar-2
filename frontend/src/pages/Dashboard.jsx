@@ -1,27 +1,50 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Map } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
 import { Layout } from '../components/Layout'
-import { ProgressBar } from '../components/ui/ProgressBar'
+import { StopIndicator } from '../components/StopIndicator'
+import { StatusSlot } from '../components/StatusSlot'
+import { JourneyMapSheet } from '../components/JourneyMapSheet'
+import { ImageSheet } from '../components/ImageSheet'
+import { LockoutScreen } from '../components/LockoutScreen'
 import { ClueCard } from '../components/ClueCard'
 import { PuzzleCard } from '../components/PuzzleCard'
-import { FragmentCard } from '../components/FragmentCard'
-import { LockoutBanner } from '../components/LockoutBanner'
-import { AnnouncementBanner } from '../components/AnnouncementBanner'
-import { StateView, StaleChip } from '../components/StateView'
+import { FragmentReveal } from '../components/reveal/FragmentReveal'
+import { StateView } from '../components/StateView'
 import { ClueSkeleton } from '../components/Skeleton'
-import { Toast } from '../components/Toast'
 import { useTeamState } from '../hooks/useTeamState'
 import { useOnline } from '../hooks/useOnline'
 import { getChapter, FRAGMENT_COUNT } from '../utils/story'
 import { describeError, formatCountdown, retryAfterSeconds, RETRY } from '../utils/errorCopy'
 
 const FLOW_KEY = 'hunterstellar_v2'
+const TOAST_MS = 6000
 
 /**
- * Only genuinely-local UI state lives here. Which fragments a team has earned
- * is NOT stored -- it is derived from the server's `progress`, so clearing
+ * One task, one screen.
+ *
+ * What used to render here, above the clue: an eyebrow, a chapter heading, a
+ * progress bar, a stale chip, a lockout banner, a rate-limit box, a
+ * teammate-moved box, a toast, an admin notice and a broadcast announcement.
+ * Three always, seven conditional, none of them mutually exclusive. The clue
+ * was block eleven on a 412px frame.
+ *
+ * Now: the station and stop live in the header, the route lives one tap behind
+ * the Map control, all five status conditions share one collapsible slot, and
+ * the body renders exactly one thing. Lockout and the fragment reveal are
+ * screens rather than inline branches, because each is the whole state when it
+ * happens.
+ *
+ * Nothing about the data layer changed. `useTeamState` is still the single
+ * owner of /team/state and still wins over a poll when a POST returns fresher
+ * state.
+ */
+
+/**
+ * Only genuinely-local UI state is persisted. Which fragments a team has earned
+ * is NOT stored: it is derived from the server's `progress`, so clearing
  * storage or switching phones loses nothing. That matters because four
  * teammates share one login and only one of them sees any given reveal.
  */
@@ -54,8 +77,11 @@ export default function Dashboard() {
   const [rateLimitedUntil, setRateLimitedUntil] = useState(null)
   const [now, setNow] = useState(() => Date.now())
 
-  // Set while a teammate is part-way through typing, so a poll cannot yank
-  // the screen out from under them.
+  const [mapOpen, setMapOpen] = useState(false)
+  const [imagesOpen, setImagesOpen] = useState(false)
+
+  // Set while a teammate is part-way through typing, so a poll cannot yank the
+  // screen out from under them.
   const [inputDirty, setInputDirty] = useState(false)
   const [heldStage, setHeldStage] = useState(null)
 
@@ -68,14 +94,22 @@ export default function Dashboard() {
     }
   }
 
-  // Drives both the rate-limit countdown and the stale-content chip.
+  // Drives the rate-limit countdown and the stale timestamp.
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
   }, [])
 
-  // Purely derived: it reaches zero on its own as `now` ticks, so there is no
-  // second copy of this in state to keep in sync.
+  // Transient messages expire on their own. The slot auto-opens for them, so
+  // one that outlived its relevance would sit there holding the screen open.
+  useEffect(() => {
+    if (!toast) return undefined
+    const t = setTimeout(() => setToast(null), TOAST_MS)
+    return () => clearTimeout(t)
+  }, [toast])
+
+  // Purely derived, so it reaches zero on its own as `now` ticks and there is
+  // no second copy in state to keep in sync.
   const rateSecondsLeft = rateLimitedUntil
     ? Math.max(0, Math.round((rateLimitedUntil - now) / 1000))
     : 0
@@ -98,17 +132,15 @@ export default function Dashboard() {
    * view now would destroy their half-entered code, so hold the previous stage
    * and let them choose when to move.
    *
-   * Adjusted during render rather than in an effect (React's documented
-   * pattern for deriving state from changing props): an effect would render
-   * the wrong screen for one frame first, which is the exact flicker we are
-   * trying to prevent.
+   * Adjusted during render rather than in an effect, which is React's
+   * documented pattern for deriving state from changing props: an effect would
+   * render the wrong screen for one frame first, which is the exact flicker
+   * this prevents.
    */
   const holdingForTyping = Boolean(inputDirty && heldStage && stage && heldStage !== stage)
   if (stage && !holdingForTyping && heldStage !== stage) {
     setHeldStage(stage)
   }
-
-  const stageChangedWhileTyping = holdingForTyping
 
   const adoptLatest = useCallback(() => {
     setInputDirty(false)
@@ -122,7 +154,6 @@ export default function Dashboard() {
       const seconds = retryAfterSeconds(err) ?? described.seconds ?? 60
       setRateLimitedUntil(Date.now() + seconds * 1000)
       setSubmitError('')
-      setToast({ tone: 'warning', message: `${described.title}. ${described.body}` })
       return
     }
     setSubmitError(`${described.title}. ${described.body}`)
@@ -131,7 +162,7 @@ export default function Dashboard() {
   /** Returns true when the submission succeeded, so inputs know to clear. */
   async function submit(path, payload, ctx) {
     if (!online) {
-      setSubmitError("You're offline. This will work again once you reconnect.")
+      setSubmitError('You are offline. This will work again once you reconnect.')
       return false
     }
     setSubmitError('')
@@ -152,19 +183,20 @@ export default function Dashboard() {
       }
 
       if (data.reason === 'locked') {
+        // No toast needed any more: the lockout screen replaces the whole body
+        // and says so at full size.
         if (data.state) applyState(data.state)
-        else refetch({ silent: true })
-        setToast({ tone: 'warning', message: 'Your team is locked out right now.' })
+        else refetch()
         return false
       }
 
       if (data.reason === 'wrong_stage') {
         // Not an error: another member got there first. Both end up in the
-        // right place; say so plainly rather than showing a failure.
+        // right place, so say so plainly rather than showing a failure.
         if (data.state) applyState(data.state)
         setInputDirty(false)
         setHeldStage(data.state?.stage ?? null)
-        setToast({ tone: 'info', message: 'A teammate already submitted this one.' })
+        setToast('A teammate already submitted this one. You are both moved on.')
         return true
       }
 
@@ -175,7 +207,7 @@ export default function Dashboard() {
 
       if (data.reason === 'wrong_code') {
         if (data.state) applyState(data.state)
-        else refetch({ silent: true })
+        else refetch()
         return false
       }
 
@@ -195,9 +227,110 @@ export default function Dashboard() {
   const submitCode = (code) => submit('/team/verify-code', { enteredCode: code }, 'clue')
   const submitAnswer = (ans) => submit('/team/verify-answer', { enteredAns: ans }, 'question')
 
+  // ------------------------------------------------------------ status slot
+
+  const stageChangedWhileTyping = holdingForTyping
+  const hasContent = Boolean(state)
+  const showStale = Boolean(error) && hasContent
+
+  // Read off `state` before the memo rather than inside it. Depending on
+  // `state?.notice` while the body reads `state` makes the declared deps
+  // narrower than the inferred ones, which stops the React Compiler from
+  // preserving the memo at all.
+  const notice = state?.notice ?? null
+  const announcement = state?.announcement ?? null
+
+  /**
+   * The five conditions that used to be five stacked boxes, in priority order.
+   * The slot renders whatever it is handed; deciding what is most urgent is
+   * this screen's job, not the component's.
+   */
+  const statusItems = useMemo(() => {
+    const items = []
+
+    if (rateSecondsLeft > 0) {
+      items.push({
+        id: 'rate',
+        tone: 'blocking',
+        label: `Attempts paused for ${formatCountdown(rateSecondsLeft)}`,
+        detail:
+          'Your crew shares ten attempts per fifteen minutes. Entry reopens when this clears.',
+      })
+    }
+
+    if (stageChangedWhileTyping) {
+      items.push({
+        id: 'moved',
+        tone: 'action',
+        label: 'A teammate moved the crew forward',
+        detail: 'Your typing is kept until you switch.',
+        action: { label: 'Show me', onClick: adoptLatest },
+      })
+    }
+
+    if (toast) {
+      items.push({ id: 'toast', tone: 'notice', label: toast, announce: true })
+    }
+
+    if (showStale) {
+      const seconds = lastUpdated ? Math.round((now - lastUpdated) / 1000) : null
+      items.push({
+        id: 'stale',
+        tone: 'warning',
+        label: seconds != null ? `Last updated ${seconds}s ago` : 'Reconnecting',
+        detail: 'Showing the last clue we received.',
+        action: { label: 'Refresh', onClick: refetch },
+      })
+    }
+
+    if (notice) {
+      items.push({ id: 'notice', tone: 'notice', label: 'Message from control', detail: notice })
+    }
+
+    if (announcement) {
+      items.push({
+        id: `ann-${announcement}`,
+        tone: 'broadcast',
+        label: 'Announcement',
+        detail: announcement,
+      })
+    }
+
+    return items
+  }, [
+    rateSecondsLeft,
+    stageChangedWhileTyping,
+    adoptLatest,
+    toast,
+    showStale,
+    lastUpdated,
+    now,
+    refetch,
+    notice,
+    announcement,
+  ])
+
   // ---------------------------------------------------------------- render
 
-  const hasContent = Boolean(state)
+  const chapter = getChapter(progress)
+  const isTerminal = state?.is_terminal ?? chapter.kind === 'terminal'
+  const locked = stage === 'locked'
+  const images = state?.clue_images || []
+
+  // The reveal takes the whole frame, including the nav rail: it is a beat in
+  // the story, not a screen to navigate away from.
+  if (hasContent && flow.pendingReveal) {
+    const index = flow.pendingReveal
+    return (
+      <Layout title="Fragment secured" showNav={false}>
+        <FragmentReveal
+          index={index}
+          isLast={index >= FRAGMENT_COUNT}
+          onContinue={() => persistFlow({ ...flow, pendingReveal: null })}
+        />
+      </Layout>
+    )
+  }
 
   if (!hasContent) {
     return (
@@ -213,39 +346,22 @@ export default function Dashboard() {
     )
   }
 
-  // Fragment reveal takes precedence over everything below it.
-  if (flow.pendingReveal) {
-    const index = flow.pendingReveal
-    const dismiss = () => persistFlow({ ...flow, pendingReveal: null })
-    return (
-      <Layout title="Fragment secured">
-        <FragmentCard
-          index={index}
-          isLast={index >= FRAGMENT_COUNT}
-          onContinue={dismiss}
-        />
-      </Layout>
-    )
-  }
-
-  const chapter = getChapter(progress)
-  const locked = stage === 'locked'
-  const isTerminal = state.is_terminal ?? chapter.kind === 'terminal'
-  const showStale = Boolean(error) && hasContent
-  const inputsDisabled = locked || !online || rateSecondsLeft > 0
+  const inputsDisabled = !online || rateSecondsLeft > 0
 
   let disabledHint = null
-  if (locked) disabledHint = 'Locked out — the timer above has to run down first.'
-  else if (!online) disabledHint = 'Offline — reconnect to submit.'
+  if (!online) disabledHint = 'Offline. Reconnect to submit.'
   else if (rateSecondsLeft > 0)
-    disabledHint = `Your team's attempts reset in ${formatCountdown(rateSecondsLeft)}.`
+    disabledHint = `Attempts reset in ${formatCountdown(rateSecondsLeft)}.`
 
   let body
-  if (stage === 'ready') {
+  if (locked) {
+    body = <LockoutScreen lockUntil={state.lock_until} onExpire={refetch} />
+  } else if (stage === 'ready') {
     body = (
-      <div className="flex-1 flex items-center justify-center px-8 text-center py-16">
-        <p className="text-text-muted text-sm">
-          Standing by. The first beacon activates when the hunt begins.
+      <div className="flex-1 flex flex-col items-center justify-center px-8 text-center py-16 gap-3">
+        <h2 className="display-grunge text-[30px] text-text-primary">Standing by</h2>
+        <p className="text-text-muted text-[14px] max-w-[260px]">
+          The first beacon activates when the hunt begins. Keep this screen open.
         </p>
       </div>
     )
@@ -253,10 +369,12 @@ export default function Dashboard() {
     body = (
       <ClueCard
         clue={state.clue_statement}
-        images={state.clue_images || []}
+        images={images}
+        progress={progress}
         terminal={isTerminal}
         cue={isTerminal ? 'Cross into the void' : 'Decrypt Signal'}
         onSubmit={submitCode}
+        onOpenImages={() => setImagesOpen(true)}
         loading={submitting}
         error={submitError}
         disabled={inputsDisabled}
@@ -268,6 +386,7 @@ export default function Dashboard() {
     body = (
       <PuzzleCard
         question={state.question}
+        progress={progress}
         onSubmit={submitAnswer}
         loading={submitting}
         error={submitError}
@@ -276,104 +395,54 @@ export default function Dashboard() {
         onDirtyChange={setInputDirty}
       />
     )
-  } else if (stage === 'locked') {
-    // Locked with no clue to show (the server withholds it) — still not a
-    // dead end: the banner above carries the countdown.
-    body = (
-      <div className="flex-1 flex items-center justify-center px-8 text-center py-16">
-        <p className="text-text-muted text-sm">
-          Entry reopens when the timer runs out. Your fragments are still readable.
-        </p>
-      </div>
-    )
   } else {
     body = (
       <div className="flex-1 flex flex-col items-center justify-center px-8 text-center py-16 gap-3">
-        <p className="text-text-muted text-sm">We couldn&rsquo;t read your current stage.</p>
-        <button onClick={refetch} className="text-sm text-accent underline cursor-pointer">
+        <p className="text-text-muted text-[14px]">We could not read your current stage.</p>
+        <button
+          onClick={refetch}
+          className="min-h-11 px-3 text-[14px] text-accent underline motion-press cursor-pointer
+            focus-visible:outline focus-visible:outline-1 focus-visible:outline-accent"
+        >
           Refresh
         </button>
       </div>
     )
   }
 
-  const showChrome = stage === 'awaiting_code' || stage === 'awaiting_puzzle' || locked
-
   return (
-    <Layout title={isTerminal ? 'The Null Void' : 'Your Journey'}>
-      <div className="flex-1 flex flex-col items-center w-full">
-        {showChrome && (
-          <div className="w-full flex flex-col items-center px-6 pt-4 gap-3">
-            <div className="w-full text-center">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-text-muted">
-                Chapter {Math.min(progress + 1, 5)} of 5
-              </p>
-              <h2 className="font-grotesk font-bold text-[22px] leading-none text-text-primary mt-1">
-                {isTerminal ? 'The Null Void' : chapter.name}
-              </h2>
-            </div>
-
-            <ProgressBar progress={progress} />
-
-            {showStale && <StaleChip lastUpdated={lastUpdated} now={now} onRetry={refetch} />}
-
-            {locked && (
-              <LockoutBanner
-                lockUntil={state.lock_until}
-                onExpire={() => refetch({ silent: true })}
-              />
-            )}
-
-            {rateSecondsLeft > 0 && (
-              <div className="w-full px-3 py-2 rounded-md border border-amber/40 bg-amber/10">
-                <p className="text-[11px] text-amber">
-                  Your team has used all 10 attempts for this 15-minute window. Next try in{' '}
-                  <span className="font-mono tabular-nums">
-                    {formatCountdown(rateSecondsLeft)}
-                  </span>
-                </p>
-              </div>
-            )}
-
-            {stageChangedWhileTyping && (
-              <div className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md border border-accent/40 bg-accent/10">
-                <span className="text-[11px] text-accent">
-                  A teammate moved the team forward.
-                </span>
-                <button
-                  onClick={adoptLatest}
-                  className="text-[11px] text-accent underline cursor-pointer shrink-0"
-                >
-                  Show me
-                </button>
-              </div>
-            )}
-
-            {toast && (
-              <Toast
-                message={toast.message}
-                tone={toast.tone}
-                onDismiss={() => setToast(null)}
-              />
-            )}
-
-            {(state.notice || state.announcement) && (
-              <div className="w-full flex flex-col gap-2">
-                {state.notice && <AnnouncementBanner message={state.notice} />}
-                {state.announcement && (
-                  <AnnouncementBanner
-                    key={state.announcement}
-                    message={state.announcement}
-                    tone="warning"
-                  />
-                )}
-              </div>
-            )}
+    <Layout
+      titleNode={
+        <StopIndicator
+          name={isTerminal ? 'The Null Void' : chapter.name}
+          progress={progress}
+          terminal={isTerminal}
+        />
+      }
+      actions={
+        <button
+          type="button"
+          onClick={() => setMapOpen(true)}
+          className="h-11 px-2 flex items-center gap-1.5 text-text-muted
+            hover:text-text-primary motion-press cursor-pointer
+            focus-visible:outline focus-visible:outline-1 focus-visible:outline-accent"
+        >
+          <Map className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
+          <span className="font-mono text-[12px] tracking-[0.1em] uppercase">Map</span>
+        </button>
+      }
+    >
+      <div className="flex-1 flex flex-col">
+        {statusItems.length > 0 && (
+          <div className="px-4 pt-3">
+            <StatusSlot items={statusItems} />
           </div>
         )}
-
-        <div className="w-full">{body}</div>
+        {body}
       </div>
+
+      <JourneyMapSheet open={mapOpen} onClose={() => setMapOpen(false)} progress={progress} />
+      <ImageSheet open={imagesOpen} onClose={() => setImagesOpen(false)} images={images} />
     </Layout>
   )
 }

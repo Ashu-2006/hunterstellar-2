@@ -46,7 +46,10 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
-          <div className="film-grain" aria-hidden="true" />
+          {/* A `.film-grain` div used to sit here. The class was never defined
+              in App.css, so it painted nothing for as long as it existed. The
+              grain a player actually sees comes from `.grain-frame` on the
+              phone frame in Layout. */}
           <OfflineBanner />
           <AppRoutes />
         </AuthProvider>

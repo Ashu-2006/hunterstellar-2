@@ -21,7 +21,11 @@
   --color-rust: #FB8C3A;
   --color-void-gold: #FFD6A0;
   --color-green: #10B981;
-  --color-red: #EF4444;
+  /* Was #EF4444, which measures 4.02:1 on --color-bg and 3.76:1 on
+     --color-surface-alt. Error copy renders at 14px, i.e. normal text, so it
+     needs 4.5:1 and was failing WCAG AA everywhere it appeared. #F87171 gives
+     5.47:1 on bg and 6.16:1 on surface. */
+  --color-red: #F87171;
   --color-amber: #F59E0B;
 
   --font-sans: 'Roboto', ui-sans-serif, system-ui, sans-serif;
@@ -35,10 +39,44 @@
   /* Referenced by AnnouncementBanner; previously undefined, so those classes
      silently produced no colour. */
   --color-indigo: #818CF8;
+
+  /*
+   * MOTION TOKENS
+   *
+   * Three curves, named by job rather than by number. Registered in @theme so
+   * Tailwind emits `ease-enter` / `ease-exit` / `ease-standard` utilities and
+   * so the values land on :root for var() and for lib/motion.js to mirror.
+   *
+   * Enter decelerates (arrival). Exit accelerates (departure). Standard eases
+   * both ends. If the product's feel ever changes, it changes here, once.
+   */
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/*
+ * Durations. Kept as plain custom properties because Tailwind v4 has no
+ * `duration-*` theme namespace to register them under.
+ *
+ * The three bands are perceptual, not stylistic: under 100ms the eye has not
+ * landed, so motion can only acknowledge and never narrate. 150 to 300ms is
+ * where a product's tempo is legible. Past 300ms a wait needs a skeleton or an
+ * interrupt, which is why `expressive` is reserved for moments a player sees
+ * once or twice in the whole event.
+ *
+ * Mirrored in src/lib/motion.js. Change both together.
+ */
+:root {
+  --duration-instant: 120ms;
+  --duration-base: 220ms;
+  --duration-expressive: 640ms;
+
+  --stagger-step: 50ms;
 }
 
 /* One noise texture, reused by every grained surface. Defining it once as a
-   custom property keeps .film-grain, .card-noise and .display-grunge in sync
+   custom property keeps .grain-frame, .card-noise and .display-grunge in sync
    and costs ~1KB total instead of a bitmap per surface. */
 :root {
   --noise-texture: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2Ij48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuOSIgbnVtT2N0YXZlcz0iNCIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjxmZUNvbG9yTWF0cml4IHR5cGU9Imx1bWluYW5jZVRvQWxwaGEiLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIi8+PC9zdmc+");
@@ -78,14 +116,99 @@
 }
 .animate-pulse-soft { animation: pulseSoft 1.4s ease-in-out infinite; }
 
+/*
+ * Semantic motion. Each class is one job, and each changes exactly one channel.
+ *
+ * The rule these encode: only enter, exit and reorder genuinely require
+ * motion. Hover, focus and active states are carried by colour and weight, so
+ * they get no entry here.
+ */
+
+/* Sheets rise from the bottom edge and leave through the same edge. Reverse
+   retraces the forward axis, or the spatial model the player built breaks. */
+@keyframes sheetIn {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes sheetOut {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+.motion-sheet-in { animation: sheetIn var(--duration-base) var(--ease-enter) forwards; }
+.motion-sheet-out { animation: sheetOut var(--duration-base) var(--ease-exit) forwards; }
+
+@keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scrimOut { from { opacity: 1; } to { opacity: 0; } }
+.motion-scrim-in { animation: scrimIn var(--duration-base) var(--ease-standard) forwards; }
+.motion-scrim-out { animation: scrimOut var(--duration-base) var(--ease-standard) forwards; }
+
+/* Under 100ms is acknowledgment. This is the whole press feedback: one
+   channel, no scale plus colour plus shadow stacked on one event. */
+.motion-press {
+  transition: opacity var(--duration-instant) var(--ease-standard);
+}
+.motion-press:active:not(:disabled) { opacity: 0.72; }
+
+/* Row-local disclosure. grid-template-rows animates without measuring, so an
+   expanding card needs no height JS and no layout thrash. */
+.motion-disclose {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-base) var(--ease-standard);
+}
+.motion-disclose[data-open='true'] { grid-template-rows: 1fr; }
+.motion-disclose > * { overflow: hidden; }
+
+/* Staggered arrival. The child sets --i; total sequence stays under 500ms,
+   which caps the useful list length at about ten items. */
+.motion-stagger-item {
+  opacity: 0;
+  animation: fadeIn var(--duration-base) var(--ease-enter) forwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger-step));
+}
+
+/*
+ * Reduced motion is a designed alternative, not the primary spec with the
+ * animation deleted.
+ *
+ * Fades are kept: they carry enter and exit, and removing them would lose the
+ * state change rather than soften it. Transforms, rotation and shake are
+ * replaced, because those are the ones that trigger vestibular symptoms.
+ * Durations collapse toward instant.
+ */
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 1ms;
+    --duration-base: 1ms;
+    --duration-expressive: 1ms;
+    --stagger-step: 0ms;
+  }
+
+  /* Rotation and displacement: removed outright. */
   .animate-spin-slow,
-  .animate-slide-up,
-  .shake,
-  .animate-pulse-soft,
-  .animate-fadeIn {
+  .shake {
     animation: none;
   }
+
+  /* Translate-based reveals become fades in place. */
+  .animate-slide-up,
+  .motion-sheet-in {
+    animation: fadeIn 1ms linear forwards;
+  }
+  .motion-sheet-out {
+    animation: scrimOut 1ms linear forwards;
+  }
+
+  /* Kept, because they are opacity-only and they signal live state. */
+  .animate-fadeIn,
+  .animate-pulse-soft,
+  .motion-stagger-item {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+  .motion-stagger-item { opacity: 1; }
+
+  .motion-disclose { transition-duration: 1ms; }
 }
 
 /* Distressed display headline, per the design comps. */
@@ -96,6 +219,21 @@
   text-transform: uppercase;
   position: relative;
   display: inline-block;
+  /*
+   * The ::after noise overlay is absolutely positioned to `inset: 0`, so it
+   * paints the element's whole box. `display: inline-block` was meant to keep
+   * that box hugging the glyphs, but every heading using this class sits in a
+   * flex column, where a flex item is blockified and then stretched to the
+   * cross size. The box became full-width and the overlay rendered as a
+   * visible rectangle trailing off to the right of the text.
+   *
+   * `fit-content` fixes it in both flex and block contexts, and it is enough
+   * on its own: flex `stretch` only applies when the cross size is `auto`, so
+   * an explicit width opts out. Deliberately NOT `align-self: start`, which
+   * would left-align the headings that Lockout and Finished centre.
+   */
+  width: fit-content;
+  max-width: 100%;
 }
 .display-grunge::after {
   content: "";

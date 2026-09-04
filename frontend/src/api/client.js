@@ -11,7 +11,7 @@ api.interceptors.request.use((config) => {
     const token = localStorage.getItem('odyssey_token')
     if (token) config.headers.Authorization = `Bearer ${token}`
   } catch {
-    /* storage unavailable — send the request unauthenticated and let the
+    /* storage unavailable, so send the request unauthenticated and let the
        server decide */
   }
   return config
