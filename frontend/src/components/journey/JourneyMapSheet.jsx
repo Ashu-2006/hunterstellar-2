@@ -38,6 +38,35 @@ export function JourneyMapSheet({ open, onClose, progress = 0 }) {
           : `${STATION_COUNT} stations. Every crew is sent through them in a different order, so nobody can follow the crew ahead.`}
       </p>
 
+      {/*
+        The campus map shows every station pin without any route order, so it
+        gives away nothing about where this crew is being sent. Labels are too
+        small at phone width to read inline, so the image opens full-size in a
+        new tab where the browser handles pinch-zoom for free.
+      */}
+      <figure className="mb-5">
+        <a
+          href="/map.png"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open the campus map at full size"
+          className="block overflow-hidden rounded-md border border-border/60 bg-surface-alt"
+        >
+          <img
+            src="/map.png"
+            alt="Campus map with every station pinned"
+            width={1470}
+            height={978}
+            loading="lazy"
+            decoding="async"
+            className="block aspect-[3/2] w-full object-cover"
+          />
+        </a>
+        <figcaption className="mt-2 text-[12px] text-text-muted">
+          Campus map. Tap to open full size and zoom.
+        </figcaption>
+      </figure>
+
       <ol className="flex flex-col">
         {Array.from({ length: visibleStops }, (_, i) => i).map((i) => {
           const done = i < current
