@@ -3,7 +3,7 @@ import api from '../api/client'
 import supabase from '../supabaseClient'
 import { describeError } from '../utils/errorCopy'
 
-const POLL_MS = 15000
+const POLL_MS = 30000
 const REALTIME_DEBOUNCE_MS = 300
 
 /**

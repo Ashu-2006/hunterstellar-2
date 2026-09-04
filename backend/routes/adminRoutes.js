@@ -4,6 +4,7 @@ const teamModel = require("../db/teamModel");
 const { requireAdmin } = require("../middleware/auth");
 const { adminLimiter } = require("../middleware/rateLimit");
 const { invalidateTeamStateCache, invalidateAllTeamStateCache } = require("../utils/teamState");
+const { invalidateEventConfigCache } = require("../utils/eventConfigCache");
 
 const router = express.Router();
 
@@ -16,6 +17,7 @@ router.post("/admin/start", requireAdmin, async (req, res) => {
     .eq("id", 1);
 
   if (error) return res.status(500).json({ error: error.message });
+  invalidateEventConfigCache();
   res.json({ success: true, started_at: new Date().toISOString() });
 });
 
@@ -27,6 +29,7 @@ router.post("/admin/end", requireAdmin, async (req, res) => {
     .eq("id", 1);
 
   if (error) return res.status(500).json({ error: error.message });
+  invalidateEventConfigCache();
   res.json({ success: true, ended_at: now });
 });
 

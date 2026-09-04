@@ -14,7 +14,7 @@ const STATE_CACHE = new Map();
 // Per-process only. On a multi-instance deploy two teammates can briefly see
 // different stages; the mitigation is client-side -- the verify endpoints
 // return the fresh state, so the client trusts a POST response over a poll.
-const CACHE_TTL_MS = 1000;
+const CACHE_TTL_MS = 2000;
 
 // Set to "true" once the get_team_state RPC itself returns clue_images and
 // is_terminal (migration 003), which removes the hydration round trip below.

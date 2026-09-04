@@ -1,11 +1,7 @@
-const supabase = require("../db/supabaseClient");
+const { getEventConfig } = require("../utils/eventConfigCache");
 
 async function requireEventActive(req, res, next) {
-  const { data: config, error } = await supabase
-    .from("event_config")
-    .select("started_at, duration_minutes, ended_at")
-    .eq("id", 1)
-    .single();
+  const { config, error } = await getEventConfig();
 
   if (error) return res.status(500).json({ error: error.message });
 
