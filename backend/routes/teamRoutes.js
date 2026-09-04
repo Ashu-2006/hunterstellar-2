@@ -7,8 +7,19 @@ const { requireEventActive } = require("../middleware/eventStatus");
 const { verifyLimiter } = require("../middleware/rateLimit");
 const { getTeamStateForUser, invalidateTeamStateCache, buildRandomRoute } = require("../utils/teamState");
 const { sendWelcomeEmail } = require("../utils/email");
+const { isCurrentSession, SESSION_REPLACED } = require("../utils/session");
 
 const router = express.Router();
+
+/**
+ * How long a wrong station code seals a team out.
+ *
+ * Named because the number is also spoken in the UI ("a wrong code locks your
+ * team out for N minutes") and the warning has to stay true. Distinct from the
+ * verifyLimiter window in middleware/rateLimit.js, which is a separate
+ * anti-script control that happens to also be measured in minutes.
+ */
+const LOCKOUT_MINUTES = 7;
 
 router.post("/team/register", async (req, res) => {
   if (req.headers["x-webhook-secret"] !== process.env.WEBHOOK_SECRET) {
@@ -84,6 +95,11 @@ router.post(
     if (!team) {
       return res.status(404).json({ message: "team doesn't exist" });
     }
+    // Checked before anything is read or mutated: a superseded device must not
+    // be able to burn an attempt or move the team.
+    if (!isCurrentSession(team, req.sessionId)) {
+      return res.status(401).json(SESSION_REPLACED);
+    }
     // Past the end of the route means the hunt is over, not that the team is
     // missing -- a finished team polling this endpoint gets a clean answer.
     if (!team.route?.[team.progress]) {
@@ -150,7 +166,7 @@ router.post(
       return res.json({ success: true, state });
     }
 
-    const lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+    const lockUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
     await supabase
       .from("teams")
       .update({
@@ -184,6 +200,9 @@ router.post(
     const { data: team } = await teamModel.getById(req.userId);
     if (!team) {
       return res.status(404).json({ message: "team doesn't exist" });
+    }
+    if (!isCurrentSession(team, req.sessionId)) {
+      return res.status(401).json(SESSION_REPLACED);
     }
     // Past the end of the route means the hunt is over, not that the team is
     // missing -- a finished team polling this endpoint gets a clean answer.

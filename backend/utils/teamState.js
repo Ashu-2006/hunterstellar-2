@@ -40,6 +40,11 @@ function normalizeState(state) {
   return {
     ...state,
     clue_images: Array.isArray(state.clue_images) ? state.clue_images : [],
+    // Exposed as `question_images` to match `clue_images`; the column itself
+    // is `questions.que_img`.
+    question_images: Array.isArray(state.question_images)
+      ? state.question_images
+      : [],
     is_terminal: state.is_terminal ?? null,
   };
 }
@@ -58,19 +63,43 @@ function cacheState(cacheKey, state) {
 }
 
 /**
- * The RPC strips `route`, so it cannot tell us which island the team is on.
- * Re-reads the team to find the current stop, then fetches that island's art.
- * Only runs on the clue screen, and only until migration 003 lands.
+ * The RPC strips `route`, so it cannot tell us which island or question the
+ * team is on. Re-reads the team to find the current stop, then fetches that
+ * stop's art -- the island's `clue_images` on the clue screen, the question's
+ * `que_img` on the puzzle screen.
+ *
+ * Only runs until the DB function returns these itself (RPC_HAS_IMAGES=true).
  */
-async function hydrateClueImages(state, userId) {
-  if (state.stage !== "awaiting_code") return state;
-  if (state.clue_images && state.clue_images.length > 0) return state;
+async function hydrateStopImages(state, userId) {
+  const isClue = state.stage === "awaiting_code";
+  const isPuzzle = state.stage === "awaiting_puzzle";
+  if (!isClue && !isPuzzle) return state;
+
+  // Already populated by the RPC -- nothing to fetch.
+  if (isClue && state.clue_images?.length > 0) return state;
+  if (isPuzzle && state.question_images?.length > 0) return state;
 
   try {
     const { data: team } = await teamModel.getById(userId);
     const stop = team?.route?.[team.progress];
-    if (!stop?.island_id) return state;
+    if (!stop) return state;
 
+    if (isPuzzle) {
+      if (!stop.question_id) return state;
+      const { data: question } = await supabase
+        .from("questions")
+        .select("que_img")
+        .eq("id", stop.question_id)
+        .single();
+      if (!question) return state;
+
+      return {
+        ...state,
+        question_images: Array.isArray(question.que_img) ? question.que_img : [],
+      };
+    }
+
+    if (!stop.island_id) return state;
     const { data: island } = await supabase
       .from("islands")
       .select("clue_images, is_terminal")
@@ -84,7 +113,7 @@ async function hydrateClueImages(state, userId) {
       is_terminal: island.is_terminal ?? state.is_terminal ?? null,
     };
   } catch {
-    // Art is decoration -- never fail the clue screen over it.
+    // Art is decoration -- never fail the clue or puzzle screen over it.
     return state;
   }
 }
@@ -120,7 +149,7 @@ async function getTeamStateForUser(userId) {
             let r = normalizeState(
               typeof retry.data === "string" ? JSON.parse(retry.data) : retry.data,
             );
-            if (HYDRATE_RPC_IMAGES) r = await hydrateClueImages(r, userId);
+            if (HYDRATE_RPC_IMAGES) r = await hydrateStopImages(r, userId);
             return cacheState(cacheKey, r);
           }
 
@@ -130,7 +159,7 @@ async function getTeamStateForUser(userId) {
           // Fall through to sequential fallback which returns 404
         } else {
           let state = normalizeState(data);
-          if (HYDRATE_RPC_IMAGES) state = await hydrateClueImages(state, userId);
+          if (HYDRATE_RPC_IMAGES) state = await hydrateStopImages(state, userId);
           return cacheState(cacheKey, state);
         }
       }
@@ -223,7 +252,7 @@ async function getTeamStateForUser(userId) {
   if (team.stage === "awaiting_puzzle") {
     const { data: question } = await supabase
       .from("questions")
-      .select("question_statement")
+      .select("question_statement, que_img")
       .eq("id", currentStop.question_id)
       .single();
 
@@ -231,6 +260,9 @@ async function getTeamStateForUser(userId) {
       team: safeTeam,
       stage: "awaiting_puzzle",
       question: question?.question_statement,
+      // Optional artwork for the puzzle. Named to match `clue_images`; the
+      // column is `que_img`. Most questions have none, so this is usually [].
+      question_images: question?.que_img,
       notice,
       announcement,
     };

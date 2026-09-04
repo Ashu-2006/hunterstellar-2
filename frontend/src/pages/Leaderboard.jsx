@@ -97,11 +97,11 @@ export default function Leaderboard() {
   const updatedAt = sorted.length > 0 ? sorted[0].last_correct_at : null
 
   return (
-    <Layout title="Recon">
+    <Layout title="Leaderboard">
       <div className="flex-1 flex flex-col px-6 pt-6 pb-8 w-full gap-5">
         <div className="w-full text-center">
           <h1 className="font-grotesk font-bold text-[34px] leading-none text-text-primary">Leaderboard</h1>
-          <p className="text-text-muted text-[14px] mt-2 leading-relaxed max-w-[280px] mx-auto">Teams ranked by fragments recovered on the journey to the Void.</p>
+          <p className="text-text-muted text-[14px] mt-2 leading-relaxed max-w-[280px] mx-auto">Crews ranked by shards recovered. Vilgax is counting too.</p>
           {updatedAt && <p className="text-[11px] text-text-muted/60 mt-1.5 uppercase tracking-widest">Updated {relativeTime(updatedAt)}</p>}
         </div>
 

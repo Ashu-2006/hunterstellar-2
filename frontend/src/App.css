@@ -1,28 +1,42 @@
 @import "tailwindcss";
 
+/*
+ * Ben 10 palette: Omnitrix green on near-black, white type, Null Void violet.
+ *
+ * The green is the whole identity, so it is the only hue that means "this is
+ * a control" -- accent, focus, active nav, progress. Everything else is
+ * greyscale except three signals (violet / amber / red), which is what keeps
+ * the green reading as green instead of as one colour among six.
+ *
+ * Grounds are warm-neutral near-black rather than mid-grey: heavy grain needs
+ * headroom, and #262626 left none.
+ */
 @theme {
-  --color-bg: #262626;
-  --color-surface: #1C1C1C;
-  --color-surface-alt: #2B2B2B;
-  --color-border: #3A3A3A;
+  --color-bg: #0B0D0B;
+  --color-surface: #131614;
+  --color-surface-alt: #1E231F;
+  --color-border: #2C332D;
 
-  --color-text-primary: #f6f6f6;
-  --color-text-secondary: #d9d9d9;
-  --color-text-muted: #9c9c9c;
-  --color-text-inverse: #100f0d;
+  --color-text-primary: #F2F5F2;
+  --color-text-secondary: #C9D1CA;
+  --color-text-muted: #8A968C;
+  --color-text-inverse: #0B0D0B;
 
-  --color-accent: #38BDF8;
-  --color-accent-hover: #0EA5E9;
-  --color-accent-active: #0284C7;
-  --color-nav-active: #12304F;
-  --color-teal: #2DD4BF;
-  --color-teal-muted: #5EA9A2;
+  /* Omnitrix green. `accent` is a touch deeper than the dial itself so body
+     text on it clears AA; `teal` is the brighter dial green, for glyphs and
+     rules only -- never for text. */
+  --color-accent: #6FE04B;
+  --color-accent-hover: #8AF06A;
+  --color-accent-active: #57C238;
+  --color-nav-active: #17301A;
+  --color-teal: #9CFF57;
+  --color-teal-muted: #6B8F5C;
 
-  --color-rust: #FB8C3A;
-  --color-void-gold: #FFD6A0;
-  --color-green: #10B981;
-  --color-red: #EF4444;
-  --color-amber: #F59E0B;
+  --color-rust: #6FE04B;
+  --color-void-gold: #C9A227;
+  --color-green: #6FE04B;
+  --color-red: #F0503C;
+  --color-amber: #F5A623;
 
   --font-sans: 'Roboto', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
@@ -32,9 +46,9 @@
 }
 
 @theme {
-  /* Referenced by AnnouncementBanner; previously undefined, so those classes
-     silently produced no colour. */
-  --color-indigo: #818CF8;
+  /* Null Void violet. Deliberately the scarcest colour in the app -- it marks
+     the terminal stop and nothing else, so seeing it means the rules changed. */
+  --color-indigo: #8B5CF6;
 }
 
 /* One noise texture, reused by every grained surface. Defining it once as a
@@ -141,7 +155,7 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.38;
+  opacity: 0.55;
   background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2Ij48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuOSIgbnVtT2N0YXZlcz0iNCIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjxmZUNvbG9yTWF0cml4IHR5cGU9Imx1bWluYW5jZVRvQWxwaGEiLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIi8+PC9zdmc+");
   background-repeat: repeat;
   background-size: 256px 256px;

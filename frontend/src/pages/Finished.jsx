@@ -1,12 +1,14 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { Layout } from '../components/Layout'
 import { Wordmark } from '../components/brand/Wordmark'
 import { useAuth } from '../context/AuthContext'
+import { FragmentRecord } from '../components/FragmentRecord'
 import {
   ASSEMBLED_MESSAGE,
+  FRAGMENTS,
   FRAGMENT_COUNT,
   unlockedFragmentCount,
-} from '../utils/story'
+} from '../content/fragments'
 
 /**
  * The handoff from the app to the physical final challenge.
@@ -18,6 +20,20 @@ import {
 export default function Finished() {
   const { user } = useAuth()
   const complete = unlockedFragmentCount(user?.progress) >= FRAGMENT_COUNT
+
+  /**
+   * The Null Void does not exist for a player until they have earned it, and
+   * this route was reachable by simply typing the URL -- handing a team at
+   * stop 1 the name of the ending.
+   *
+   * On a cold reload straight here, `user` comes from localStorage and can
+   * briefly lag, so a genuinely finished team may bounce to the journey
+   * screen once; the redirect there sends them straight back as soon as
+   * /team/state resolves. One bounce, landing somewhere safe, beats leaking
+   * the ending.
+   */
+  const finished = user?.status === 'finished' || (user?.progress ?? 0) >= 5
+  if (!finished) return <Navigate to="/dashboard" replace />
 
   return (
     <Layout title="The Null Void">
@@ -33,9 +49,19 @@ export default function Finished() {
             <span className="text-[11px] uppercase tracking-[0.3em] text-void-gold">
               Assembled transmission
             </span>
-            <p className="text-void-gold text-[17px] leading-relaxed whitespace-pre-line">
-              {ASSEMBLED_MESSAGE}
-            </p>
+            {ASSEMBLED_MESSAGE ? (
+              <p className="text-void-gold text-[17px] leading-relaxed whitespace-pre-line">
+                {ASSEMBLED_MESSAGE}
+              </p>
+            ) : (
+              // The case study is argued from these records, so put them in
+              // front of the team rather than making them tab away mid-answer.
+              <div className="flex flex-col gap-5">
+                {Object.values(FRAGMENTS).map((fragment) => (
+                  <FragmentRecord key={fragment.index} fragment={fragment} dense />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -50,11 +76,11 @@ export default function Finished() {
 
         <div className="w-full flex flex-col gap-3 text-text-secondary text-[15px] leading-relaxed">
           <p>
-            The signal that pulled you across the dark is quiet now. Four fragments,
-            four stations, one message that was never meant to be reassembled.
+            Four shards, four star systems, one record that was never meant to be
+            read back in order. Vilgax never reached them.
           </p>
           <p className="text-text-muted">
-            What you do with it is no longer the ship&rsquo;s decision.
+            What you do with it is no longer the Omnitrix&rsquo;s decision.
           </p>
         </div>
 

@@ -1,54 +1,6 @@
 import { useState } from 'react'
-import { ImageOff } from 'lucide-react'
-import { Skeleton } from './Skeleton'
-
-/**
- * Artwork is decoration; the text clue is always sufficient on its own. A
- * broken or slow image must never hide or delay the passcode input, so images
- * carry their own loading and error states and are laid out above a field that
- * renders regardless.
- */
-function ClueImage({ src, index }) {
-  const [status, setStatus] = useState('loading')
-  const [attempt, setAttempt] = useState(0)
-
-  if (status === 'error') {
-    return (
-      <div className="w-full rounded-md border border-border bg-surface px-4 py-5 flex flex-col items-center gap-2 text-center">
-        <ImageOff className="w-5 h-5 text-text-muted" strokeWidth={1.5} />
-        <p className="text-xs text-text-muted">
-          Image didn&rsquo;t load — the written clue is complete on its own.
-        </p>
-        <button
-          type="button"
-          onClick={() => {
-            setStatus('loading')
-            setAttempt((n) => n + 1)
-          }}
-          className="text-xs text-accent underline cursor-pointer"
-        >
-          Retry image
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="w-full relative rounded-md overflow-hidden border border-border bg-surface">
-      {status === 'loading' && <Skeleton className="w-full aspect-[4/3]" />}
-      <img
-        key={attempt}
-        src={src}
-        alt={`Clue image ${index + 1}`}
-        loading="lazy"
-        decoding="async"
-        onLoad={() => setStatus('ready')}
-        onError={() => setStatus('error')}
-        className={`w-full h-auto block ${status === 'ready' ? '' : 'absolute opacity-0 pointer-events-none'}`}
-      />
-    </div>
-  )
-}
+import { RemoteImage } from './RemoteImage'
+import { LOCKOUT_MINUTES } from '../utils/rules'
 
 export function ClueCard({
   clue,
@@ -76,7 +28,7 @@ export function ClueCard({
     if (!code.trim() || loading || disabled) return
     const ok = await onSubmit(code.trim())
     // Only clear on success. Making someone retype a passcode they just got
-    // wrong -- when a wrong code costs them 15 minutes -- destroys the very
+    // wrong -- when a wrong code costs them the full lockout -- destroys the very
     // evidence they want to check.
     if (ok) {
       setCode('')
@@ -106,7 +58,12 @@ export function ClueCard({
         {images.length > 0 && (
           <div className="flex flex-col gap-3">
             {images.map((src, i) => (
-              <ClueImage key={src || i} src={src} index={i} />
+              <RemoteImage
+                key={src || i}
+                src={src}
+                alt={`Clue image ${i + 1}`}
+                fallbackNote="Image didn't load — the written clue is complete on its own."
+              />
             ))}
           </div>
         )}
@@ -118,7 +75,8 @@ export function ClueCard({
             The final challenge is not in this app.
           </p>
           <p className="text-[12px] text-void-gold/80">
-            Enter the code from the Null Void here. A wrong code still costs 15 minutes.
+            Enter the code from the Null Void here. A wrong code still costs{' '}
+            {LOCKOUT_MINUTES} minutes.
           </p>
         </div>
       )}

@@ -5,6 +5,7 @@ import { OfflineBanner } from './components/OfflineBanner'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Prologue from './pages/Prologue'
 import Planet from './pages/Planet'
 import Finished from './pages/Finished'
 import Leaderboard from './pages/Leaderboard'
@@ -29,6 +30,7 @@ function AppRoutes() {
       <Route path="/" element={<GuestRoute><Landing /></GuestRoute>} />
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/prologue" element={<ProtectedRoute><Prologue /></ProtectedRoute>} />
       <Route path="/planet" element={<ProtectedRoute><Planet /></ProtectedRoute>} />
       <Route path="/fragments" element={<Navigate to="/planet" replace />} />
       <Route path="/finished" element={<ProtectedRoute><Finished /></ProtectedRoute>} />

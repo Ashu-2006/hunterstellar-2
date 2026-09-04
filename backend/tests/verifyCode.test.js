@@ -41,7 +41,7 @@ describe("Verify code behavior", () => {
     return team;
   }
 
-  test("wrong code returns locked, increments wrong_attempts, sets lock_until +15min", async () => {
+  test("wrong code returns locked, increments wrong_attempts, sets lock_until +7min", async () => {
     setup();
     const before = Date.now();
     const res = await request(app)
@@ -55,8 +55,9 @@ describe("Verify code behavior", () => {
     expect(res.body.reason).toBe("wrong_code");
     expect(res.body.lock_until).toBeDefined();
     const lockUntil = new Date(res.body.lock_until).getTime();
-    expect(lockUntil).toBeGreaterThanOrEqual(before + 14 * 60 * 1000);
-    expect(lockUntil).toBeLessThanOrEqual(after + 16 * 60 * 1000);
+    // 7 minutes, with a minute of slack either side for slow CI.
+    expect(lockUntil).toBeGreaterThanOrEqual(before + 6 * 60 * 1000);
+    expect(lockUntil).toBeLessThanOrEqual(after + 8 * 60 * 1000);
 
     const team = mockSupabase.__testing.getTable("teams").find(t => t.id === "team-a");
     expect(team.status).toBe("locked");

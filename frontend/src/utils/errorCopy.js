@@ -8,6 +8,8 @@
  * them hunting for a better answer they already had.
  */
 
+import { VERIFY_ATTEMPTS, VERIFY_WINDOW_MINUTES } from './rules'
+
 export const RETRY = {
   AUTO: 'auto', // we retry with backoff, no user action
   MANUAL: 'manual', // show a Retry button
@@ -111,7 +113,7 @@ export function describeError(err, ctx = 'state') {
       // The verify budget is per TEAM, not per person. Four teammates share
       // it, so "you" would send someone hunting for a bug that isn't theirs.
       title: 'Your team has used all its attempts',
-      body: 'The limit is 10 tries per team every 15 minutes.',
+      body: `The limit is ${VERIFY_ATTEMPTS} tries per team every ${VERIFY_WINDOW_MINUTES} minutes.`,
       retry: RETRY.COUNTDOWN,
       seconds,
     }

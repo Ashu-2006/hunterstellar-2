@@ -3,7 +3,7 @@ import axios from 'axios'
 export const SESSION_NOTICE_KEY = 'odyssey_session_notice'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5173/api',
 })
 
 api.interceptors.request.use((config) => {
@@ -31,8 +31,11 @@ api.interceptors.response.use(
         localStorage.removeItem('odyssey_token')
         localStorage.removeItem('odyssey_user')
         // Tell the login screen why it is being shown, instead of bouncing
-        // the player there with no explanation.
-        sessionStorage.setItem(SESSION_NOTICE_KEY, 'expired')
+        // the player there with no explanation. Being evicted by a teammate's
+        // login is a very different thing from a session timing out, and a
+        // team that reads the wrong one will waste minutes chasing it.
+        const replaced = err.response?.data?.reason === 'session_replaced'
+        sessionStorage.setItem(SESSION_NOTICE_KEY, replaced ? 'replaced' : 'expired')
       } catch {
         /* ignore */
       }

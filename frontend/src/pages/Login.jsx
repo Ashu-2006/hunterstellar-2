@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { Wordmark } from '../components/brand/Wordmark'
 import { SESSION_NOTICE_KEY } from '../api/client'
 import { useOnline } from '../hooks/useOnline'
+import { hasSeenPrologue } from '../utils/prologueSeen'
 import { describeError, formatCountdown, retryAfterSeconds, RETRY } from '../utils/errorCopy'
 
 export default function Login() {
@@ -19,8 +20,12 @@ export default function Login() {
   // state on the very first commit just to show a message we already know.
   const [notice] = useState(() => {
     try {
-      if (sessionStorage.getItem(SESSION_NOTICE_KEY) === 'expired') {
-        sessionStorage.removeItem(SESSION_NOTICE_KEY)
+      const reason = sessionStorage.getItem(SESSION_NOTICE_KEY)
+      if (reason) sessionStorage.removeItem(SESSION_NOTICE_KEY)
+      if (reason === 'replaced') {
+        return 'Your team signed in on another device. Only one device can play at a time — log in again to take over.'
+      }
+      if (reason === 'expired') {
         return 'Your session expired. Log in again to pick up where you left off.'
       }
     } catch {
@@ -49,8 +54,11 @@ export default function Login() {
     setError(null)
     setLoading(true)
     try {
-      await login(teamName.trim(), password)
-      navigate('/dashboard')
+      const data = await login(teamName.trim(), password)
+      // First sign-in on this device gets the briefing; anyone already mid-hunt
+      // goes straight to their clue.
+      const seen = hasSeenPrologue(data?.user?.id)
+      navigate(seen ? '/dashboard' : '/prologue', { replace: true })
     } catch (err) {
       const described = describeError(err, 'login')
       setError(described)
@@ -74,8 +82,15 @@ export default function Login() {
             <Wordmark width={240} />
 
             <form onSubmit={handleSubmit} className="w-full flex flex-col gap-7" noValidate>
+              {/* Wording is copied from the registration form, deliberately.
+                  A team under pressure is reading their confirmation email in
+                  one hand and this screen in the other; three different names
+                  for the same two fields is how a crew decides the app is
+                  broken. The form's labels cannot change -- they are live and
+                  the Apps Script matches on them -- so everything else moves
+                  to match the form. */}
               <p className="text-text-primary text-center text-lg leading-snug">
-                Enter your Crew Identifier
+                Enter your shuttlecraft credentials
               </p>
 
               {notice && (
@@ -93,8 +108,8 @@ export default function Login() {
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck="false"
-                  placeholder="Crew Name"
-                  aria-label="Crew name"
+                  placeholder="Shuttlecraft Callsign"
+                  aria-label="Shuttlecraft callsign"
                   className="w-full h-[60px] bg-surface border border-surface-alt rounded-md px-5 text-text-primary text-base placeholder:text-text-muted outline-none focus:border-accent disabled:opacity-60"
                 />
                 <input
@@ -102,8 +117,8 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
-                  placeholder="Access Code"
-                  aria-label="Access code"
+                  placeholder="Rust Bucket Access Code"
+                  aria-label="Rust Bucket access code"
                   className="w-full h-[60px] bg-surface border border-surface-alt rounded-md px-5 text-text-primary text-base placeholder:text-text-muted outline-none focus:border-accent disabled:opacity-60"
                 />
               </div>

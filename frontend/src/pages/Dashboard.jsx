@@ -1,20 +1,19 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
 import { Layout } from '../components/Layout'
-import { ProgressBar } from '../components/ui/ProgressBar'
 import { ClueCard } from '../components/ClueCard'
 import { PuzzleCard } from '../components/PuzzleCard'
 import { FragmentCard } from '../components/FragmentCard'
 import { LockoutBanner } from '../components/LockoutBanner'
-import { AnnouncementBanner } from '../components/AnnouncementBanner'
 import { StateView, StaleChip } from '../components/StateView'
 import { ClueSkeleton } from '../components/Skeleton'
 import { Toast } from '../components/Toast'
+import { notificationsFromState } from '../utils/notifications'
 import { useTeamState } from '../hooks/useTeamState'
 import { useOnline } from '../hooks/useOnline'
-import { getChapter, FRAGMENT_COUNT } from '../utils/story'
+import { FRAGMENT_COUNT } from '../content/fragments'
 import { describeError, formatCountdown, retryAfterSeconds, RETRY } from '../utils/errorCopy'
 
 const FLOW_KEY = 'hunterstellar_v2'
@@ -82,6 +81,15 @@ export default function Dashboard() {
 
   const stage = state?.stage
   const progress = state?.team?.progress || 0
+
+  // Memoised on the two strings, not on `state`: the poll hands back a fresh
+  // object every 15s, and a new array each time would make the bell's unread
+  // bookkeeping churn for no reason.
+  const notifications = useMemo(
+    () => notificationsFromState(state),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state?.notice, state?.announcement],
+  )
 
   useEffect(() => {
     if (state?.team) updateUser(state.team)
@@ -201,7 +209,7 @@ export default function Dashboard() {
 
   if (!hasContent) {
     return (
-      <Layout title="Your Journey">
+      <Layout title="Your Journey" notifications={notifications}>
         <StateView
           loading={loading}
           error={error}
@@ -218,7 +226,7 @@ export default function Dashboard() {
     const index = flow.pendingReveal
     const dismiss = () => persistFlow({ ...flow, pendingReveal: null })
     return (
-      <Layout title="Fragment secured">
+      <Layout title="Fragment secured" notifications={notifications}>
         <FragmentCard
           index={index}
           isLast={index >= FRAGMENT_COUNT}
@@ -228,9 +236,11 @@ export default function Dashboard() {
     )
   }
 
-  const chapter = getChapter(progress)
   const locked = stage === 'locked'
-  const isTerminal = state.is_terminal ?? chapter.kind === 'terminal'
+  // The server decides this; the local check is only a fallback for payloads
+  // that omit the flag (the `locked` branch does). The terminal stop is always
+  // the one after the last fragment.
+  const isTerminal = state.is_terminal ?? progress >= FRAGMENT_COUNT
   const showStale = Boolean(error) && hasContent
   const inputsDisabled = locked || !online || rateSecondsLeft > 0
 
@@ -268,6 +278,7 @@ export default function Dashboard() {
     body = (
       <PuzzleCard
         question={state.question}
+        images={state.question_images || []}
         onSubmit={submitAnswer}
         loading={submitting}
         error={submitError}
@@ -299,21 +310,33 @@ export default function Dashboard() {
 
   const showChrome = stage === 'awaiting_code' || stage === 'awaiting_puzzle' || locked
 
+  /**
+   * The briefing promises four stations, so the app promises four. The fifth
+   * stop does not exist for the player until the fourth question is solved,
+   * and neither does the "of 5" that would give it away.
+   *
+   * Keyed on `progress`, deliberately not on `isTerminal`: the server only
+   * sends `is_terminal` on the awaiting_code payload, so a team locked out AT
+   * the Null Void would fall back to "of 4" at the one moment the fifth stop
+   * is most obviously real.
+   */
+  const totalStops = progress >= FRAGMENT_COUNT ? 5 : FRAGMENT_COUNT
+
   return (
-    <Layout title={isTerminal ? 'The Null Void' : 'Your Journey'}>
+    <Layout title={isTerminal ? 'The Null Void' : 'Your Journey'} notifications={notifications}>
       <div className="flex-1 flex flex-col items-center w-full">
         {showChrome && (
           <div className="w-full flex flex-col items-center px-6 pt-4 gap-3">
             <div className="w-full text-center">
               <p className="text-[10px] uppercase tracking-[0.3em] text-text-muted">
-                Chapter {Math.min(progress + 1, 5)} of 5
+                Stop {Math.min(progress + 1, totalStops)} of {totalStops}
               </p>
-              <h2 className="font-grotesk font-bold text-[22px] leading-none text-text-primary mt-1">
-                {isTerminal ? 'The Null Void' : chapter.name}
-              </h2>
+              {isTerminal && (
+                <h2 className="font-grotesk font-bold text-[22px] leading-none text-text-primary mt-1">
+                  The Null Void
+                </h2>
+              )}
             </div>
-
-            <ProgressBar progress={progress} />
 
             {showStale && <StaleChip lastUpdated={lastUpdated} now={now} onRetry={refetch} />}
 
@@ -357,18 +380,6 @@ export default function Dashboard() {
               />
             )}
 
-            {(state.notice || state.announcement) && (
-              <div className="w-full flex flex-col gap-2">
-                {state.notice && <AnnouncementBanner message={state.notice} />}
-                {state.announcement && (
-                  <AnnouncementBanner
-                    key={state.announcement}
-                    message={state.announcement}
-                    tone="warning"
-                  />
-                )}
-              </div>
-            )}
           </div>
         )}
 

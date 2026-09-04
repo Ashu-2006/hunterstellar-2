@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { RemoteImage } from './RemoteImage'
 
 export function PuzzleCard({
   question,
+  images = [],
   onSubmit,
   loading,
   error,
@@ -39,9 +41,25 @@ export function PuzzleCard({
             This question didn&rsquo;t load. Pull to refresh, or show this screen to a marshal.
           </p>
         )}
+
+        {images.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {images.map((src, i) => (
+              <RemoteImage
+                key={src || i}
+                src={src}
+                alt={`Question image ${i + 1}`}
+                // Deliberately different from the clue wording: a question's
+                // image may BE the puzzle, so promising the text is complete
+                // would be a lie. Send them to a marshal instead.
+                fallbackNote="Image didn't load. If the question needs it, show this to a marshal."
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Wrong codes lock a team for 15 minutes; wrong answers do not. Teams
+      {/* Wrong codes lock a team out; wrong answers do not. Teams
           conflate the two and stop guessing, so say it before they submit. */}
       <p className="text-xs text-text-muted -mt-2">
         Wrong answers don&rsquo;t lock you. Take your best guess.

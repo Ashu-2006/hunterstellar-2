@@ -33,6 +33,7 @@ describe("team state contract (RPC path vs JS fallback)", () => {
     question_statement: "Q1",
     question_answer: "ANS1",
     domain: "test",
+    que_img: ["https://cdn.test/question-1.jpg"],
   };
 
   function seed(overrides = {}) {
@@ -167,6 +168,43 @@ describe("team state contract (RPC path vs JS fallback)", () => {
       expect(state.stage).toBe("awaiting_puzzle");
       expect(state.question).toBe("Q1");
       expect(state.clue_images).toEqual([]);
+    });
+
+    test("question images reach the client on the fallback path", async () => {
+      seed({ stage: "awaiting_puzzle" });
+
+      const state = await getTeamStateForUser("team-a");
+      expect(state.stage).toBe("awaiting_puzzle");
+      expect(state.question_images).toEqual(QUESTION.que_img);
+    });
+
+    test("question images are hydrated when the RPC omits them", async () => {
+      // The RPC body lives in the database and does not know about que_img
+      // yet. Without hydration this is exactly how the column ships nothing
+      // while every other test stays green.
+      seed({ stage: "awaiting_puzzle" });
+      mockSupabase.__testing.setRpc("get_team_state", () => ({
+        data: {
+          team: { id: "team-a", team_name: "Team Alpha", progress: 0 },
+          stage: "awaiting_puzzle",
+          question: "Q1",
+        },
+        error: null,
+      }));
+
+      const state = await getTeamStateForUser("team-a");
+      expect(state.question_images).toEqual(QUESTION.que_img);
+    });
+
+    test("a question with no image yields an empty array, never null", async () => {
+      // Most questions have no art; the client maps over this unconditionally.
+      seed({ stage: "awaiting_puzzle" });
+      mockSupabase.__testing.setTable("questions", [
+        { ...QUESTION, que_img: null },
+      ]);
+
+      const state = await getTeamStateForUser("team-a");
+      expect(state.question_images).toEqual([]);
     });
 
     test("an RPC error falls through to the fallback rather than failing", async () => {
