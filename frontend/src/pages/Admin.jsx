@@ -36,19 +36,29 @@ export default function Admin() {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'teams' },
-        (payload) => {
+        () => {
+          // The payload is a single changed row; simpler and less
+          // error-prone to refetch the list than to patch it in place.
           fetchTeams()
         },
       )
       .subscribe()
 
+    // Fetch-on-mount. The lint rule objects to any setState reached
+    // synchronously from an effect body, but this is the initial load of a
+    // list that has no other trigger -- the same exception Leaderboard.jsx
+    // takes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTeams()
     const interval = setInterval(fetchTeams, 5000)
     return () => {
       supabase.removeChannel(channel)
       clearInterval(interval)
     }
-  }, [authenticated]) // only re-run when auth changes, not on every render
+    // `fetchTeams` is memoised on adminSecret, which only changes while the
+    // auth form is on screen -- and this effect returns early then. So
+    // including it is honest and costs nothing.
+  }, [authenticated, fetchTeams])
 
   async function handleAuth(e) {
     e.preventDefault()

@@ -142,9 +142,21 @@ router.post(
       const isLastStop = currentStop.question_id === null;
       const newProgress = isLastStop ? team.progress + 1 : team.progress;
       const newStage = isLastStop ? "awaiting_code" : "awaiting_puzzle";
-      const newStatus = isLastStop ? "finished" : team.status;
+      // Reaching here means the lock guard above let us through, so the team
+      // is definitionally not locked -- write that, rather than carrying
+      // `team.status` forward. Carrying it forward left teams sitting at
+      // status:"locked" after they had already moved on, because the expiry
+      // is only cleared on a state READ and a team can submit before one
+      // happens. Harmless to the player (the read self-heals) but it shows on
+      // the public leaderboard as a penalty they are not serving.
+      const newStatus = isLastStop ? "finished" : "active";
 
-      const updatePayload = { stage: newStage, progress: newProgress, status: newStatus };
+      const updatePayload = {
+        stage: newStage,
+        progress: newProgress,
+        status: newStatus,
+        lock_until: null,
+      };
       const { data: updated, error: updateError } = await supabase
         .from("teams")
         .update(updatePayload)
@@ -242,12 +254,15 @@ router.post(
       question.question_answer.trim().toLowerCase()
     ) {
       const newProgress = team.progress + 1;
-      const newStatus = newProgress === 5 ? "finished" : team.status;
+      // Same reasoning as verify-code: a correct answer cannot happen while
+      // locked, so never carry a stale "locked" forward.
+      const newStatus = newProgress === 5 ? "finished" : "active";
 
       const updatePayload = {
         stage: "awaiting_code",
         progress: newProgress,
         status: newStatus,
+        lock_until: null,
         last_correct_at: new Date().toISOString(),
       };
       const { data: updated, error: updateError } = await supabase

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { render, screen, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AuthProvider, useAuth } from '../AuthContext'
@@ -193,7 +194,12 @@ describe('updateUser', () => {
     const updateUserRef = { current: null }
     function CaptureUpdate() {
       const { updateUser } = useAuth()
-      updateUserRef.current = updateUser
+      // Captured in an effect, not during render: assigning to a variable
+      // declared outside the component while rendering is exactly what the
+      // compiler rule forbids, and it makes the render impure.
+      useEffect(() => {
+        updateUserRef.current = updateUser
+      }, [updateUser])
       return <span>ready</span>
     }
 
