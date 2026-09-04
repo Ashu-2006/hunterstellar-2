@@ -4,11 +4,11 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const teamModel = require("../db/teamModel");
 const { getTeamStateForUser } = require("../utils/teamState");
-const { loginLimiter } = require("../middleware/rateLimit");
+const { loginLimiter, loginIpLimiter } = require("../middleware/rateLimit");
 
 const router = express.Router();
 
-router.post("/login", loginLimiter, async (req, res) => {
+router.post("/login", loginIpLimiter, loginLimiter, async (req, res) => {
   const { team_name, password } = req.body;
 
   if (!team_name || !password) {
