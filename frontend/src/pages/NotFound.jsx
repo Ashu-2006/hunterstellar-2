@@ -4,7 +4,7 @@ import { Orbit } from 'lucide-react'
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="relative w-full max-w-[412px] h-screen sm:h-[917px] bg-bg flex flex-col overflow-hidden border-x sm:border border-surface-alt shadow-2xl">
+      <div className="relative grain-frame w-full max-w-[412px] h-screen sm:h-[917px] bg-bg flex flex-col overflow-hidden border-x sm:border border-surface-alt shadow-2xl">
         <div className="flex-1 flex items-center justify-center px-6 relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <Orbit className="w-[400px] h-[400px] text-accent/5 animate-spin-slow" strokeWidth={0.5} />

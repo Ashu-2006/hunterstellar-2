@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    :root{
+      --v0:#0B0A09;--v1:#131110;--h2:#1C1917;--h3:#262220;--h4:#383230;--h5:#4A423E;
+      --r4:#EA6A22;--r5:#C2410C;--em:#FDBA74;
+      --vg:#7C5CFF;--vd:#2A1B4D;
+      --g3:#FFD6A0;--g5:#B8860B;
+      --sg:#4EA8DE;--wa:#FBBF24;--fa:#F0503C;
+      --i0:#FAF7F2;--i1:#DCD5CC;--i3:#9A928A;--i5:#6B635D;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;width:360px;height:640px;background:var(--v0);color:var(--i1);
+      font-family:'Space Grotesk',system-ui,sans-serif;font-size:14px;
+      overflow:hidden;position:relative}
+    .grain{position:absolute;inset:0;pointer-events:none;z-index:9;opacity:.20;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3CfeColorMatrix type='luminanceToAlpha'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size:180px 180px}
+    .scan{position:absolute;inset:0;pointer-events:none;z-index:8;opacity:.42;
+      background:repeating-linear-gradient(180deg,transparent 0 2px,rgba(0,0,0,.18) 2px 3px)}
+    .vig{position:absolute;inset:0;pointer-events:none;z-index:7;
+      background:radial-gradient(ellipse at 50% 35%,transparent 42%,#0B0A09 100%);opacity:.85}
+    .wrap{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;padding:20px 24px 0}
+    .d{font-family:'Bebas Neue',Impact,sans-serif;letter-spacing:.02em;line-height:.92;color:var(--i0)}
+    .m{font-family:'JetBrains Mono',ui-monospace,monospace}
+    .lbl{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--i3);font-weight:700}
+    .plate{background:var(--h2);border:1px solid var(--h4);border-radius:8px;padding:16px}
+    .btn{height:48px;display:flex;align-items:center;justify-content:center;border-radius:8px;
+      background:var(--r4);color:#0B0A09;font-weight:700;letter-spacing:.08em;
+      text-transform:uppercase;font-size:13px}
+    .btn.ghost{background:transparent;border:1px solid var(--h5);color:var(--i1)}
+    .btn.void{background:var(--vg);color:#0B0A09}
+    .btn.off{background:var(--h4);color:var(--i5)}
+    .inp{height:48px;border-radius:8px;background:var(--v1);border:1px solid var(--h5);
+      display:flex;align-items:center;padding:0 14px;color:var(--i3);font-size:16px}
+    .inp.dim{opacity:.45}
+    .hint{font-size:12px;color:var(--i3);line-height:1.45}
+    .nav{position:absolute;left:0;right:0;bottom:0;height:64px;background:var(--h3);
+      border-top:1px solid var(--h4);display:grid;grid-template-columns:repeat(4,1fr);z-index:6}
+    .navi{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+      font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--i3)}
+    .navi.on{color:var(--r4)}
+    .rail{position:absolute;top:0;height:2px;background:var(--r4)}
+    .bar{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:6px;font-size:11px}
+    a{color:var(--sg);text-decoration:none}
+    a:hover{color:var(--em)}
+  </style>
+</helmet>
+<div class="grain"></div>
+<div class="scan"></div>
+<div class="vig"></div>
+<div style="position:absolute;top:20px;right:22px;z-index:5;font-size:11px;letter-spacing:.2em;color:var(--i5)">SKIP</div>
+<div class="wrap" style="justify-content:center">
+  <div class="lbl" style="margin-bottom:20px;text-align:center">Assembled Transmission</div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="m" style="font-size:12px;color:var(--g3);opacity:.85;line-height:1.6">
+      <span style="color:var(--g5)">I&nbsp;&nbsp;</span>firing window logged &mdash; tachyon pulse, scheduled_
+    </div>
+    <div class="m" style="font-size:12px;color:var(--g3);opacity:.85;line-height:1.6">
+      <span style="color:var(--g5)">II&nbsp;</span>burst signature matches the pulse profile &mdash; unexplained_
+    </div>
+    <div class="m" style="font-size:12px;color:var(--g3);opacity:.85;line-height:1.6">
+      <span style="color:var(--g5)">III</span> origin bearing resolves inward, along this hull&rsquo;s vector_
+    </div>
+    <div class="m" style="font-size:12px;color:var(--g3);opacity:.85;line-height:1.6">
+      <span style="color:var(--g5)">IV&nbsp;</span>authorisation carries this shuttle&rsquo;s callsign_
+    </div>
+  </div>
+  <div class="hint" style="margin-top:26px;text-align:center;font-size:11px;color:var(--i5)">
+    [ owner supplies final lines &mdash; shape shown ]
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

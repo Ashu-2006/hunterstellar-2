@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Trophy, Users, RefreshCw } from 'lucide-react'
 import supabase from '../supabaseClient'
-import { Loading } from '../components/Loading'
+import { LeaderboardSkeleton } from '../components/Skeleton'
 import { Layout } from '../components/Layout'
 
 function relativeTime(ts) {
@@ -36,19 +36,56 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  async function load() {
-    if (!supabase) { setError('Live data not configured.'); setLoading(false); return }
-    try { const { data, error: err } = await supabase.from('leaderboard').select('team_name, progress, status, last_correct_at'); if (err) throw err; setTeams(data || []); setError('') } catch { setError('Could not load leaderboard.') } finally { setLoading(false) }
+  const BASE_COLUMNS = 'team_name, progress, status, last_correct_at'
+
+  /**
+   * `in_null_void` only exists once migration 002 has been applied. Selecting a
+   * column the view doesn't have is a hard error in Postgres, so ask for it
+   * first and fall back to the original column list -- otherwise deploying the
+   * frontend ahead of the migration takes the whole leaderboard down.
+   */
+  async function fetchRows() {
+    const withVoid = await supabase
+      .from('leaderboard')
+      .select(`${BASE_COLUMNS}, in_null_void`)
+    if (!withVoid.error) return withVoid.data || []
+
+    const legacy = await supabase.from('leaderboard').select(BASE_COLUMNS)
+    if (legacy.error) throw legacy.error
+    return legacy.data || []
+  }
+
+  async function load({ cancelled } = {}) {
+    try {
+      const rows = await fetchRows()
+      if (cancelled?.()) return
+      setTeams(rows)
+      setError('')
+    } catch {
+      if (!cancelled?.()) setError('Could not load leaderboard.')
+    } finally {
+      if (!cancelled?.()) setLoading(false)
+    }
   }
 
   useEffect(() => {
-    let cancelled = false
-    async function initial() {
-      if (!supabase) { if (!cancelled) { setError('Live data not configured.'); setLoading(false) } return }
-      try { const { data, error: err } = await supabase.from('leaderboard').select('team_name, progress, status, last_correct_at'); if (cancelled) return; if (err) throw err; setTeams(data || []); setError('') } catch { if (!cancelled) setError('Could not load leaderboard.') } finally { if (!cancelled) setLoading(false) }
+    // Handled by the derived `configured` flag below, not by setting state here.
+    if (!supabase) return undefined
+    let done = false
+    const cancelled = () => done
+    // Fetch-on-mount: load() only touches state after awaiting the query.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load({ cancelled })
+    const interval = setInterval(() => load({ cancelled }), 10000)
+    return () => {
+      done = true
+      clearInterval(interval)
     }
-    initial(); const interval = setInterval(load, 10000); return () => { cancelled = true; clearInterval(interval) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const configured = Boolean(supabase)
+  const displayError = configured ? error : 'Live data not configured.'
 
   const sorted = [...teams].sort((a, b) => {
     if (b.progress !== a.progress) return b.progress - a.progress
@@ -68,9 +105,9 @@ export default function Leaderboard() {
           {updatedAt && <p className="text-[11px] text-text-muted/60 mt-1.5 uppercase tracking-widest">Updated {relativeTime(updatedAt)}</p>}
         </div>
 
-        {loading ? <Loading label="Updating recon data..." /> : error ? (
+        {configured && loading && sorted.length === 0 ? <LeaderboardSkeleton /> : displayError && sorted.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <p className="text-sm text-text-muted">{error}</p>
+            <p className="text-sm text-text-muted">{displayError}</p>
             <button onClick={load} className="flex items-center gap-2 px-4 h-10 rounded-md bg-surface border border-surface-alt text-text-secondary text-sm"> <RefreshCw className="w-4 h-4" /> Retry </button>
           </div>
         ) : sorted.length === 0 ? (
@@ -83,19 +120,21 @@ export default function Leaderboard() {
           <div className="w-full flex flex-col gap-2.5">
             {sorted.map((team, i) => {
               const status = statusLabel(team.status)
+              // Falls back to progress when the view predates migration 002.
+              const inVoid = team.in_null_void ?? ((team.progress ?? 0) >= 5)
               const pct = Math.min(100, (team.progress || 0) * 20)
               return (
-                <div key={team.team_name} className="flex items-center gap-3 px-4 py-3 rounded-md bg-surface border border-surface-alt/40">
+                <div key={team.team_name} className={`flex items-center gap-3 px-4 py-3 rounded-md card-noise border ${inVoid ? 'border-void-gold/40' : 'border-surface-alt/40'}`}>
                   <div className="flex items-center justify-center w-9 h-9 rounded-full shrink-0 bg-surface-alt">
                     {i === 0 ? <Trophy className="w-[18px] h-[18px] text-teal" strokeWidth={1.8} /> : <span className={`font-bebas text-xl leading-none ${i < 5 ? 'text-teal' : 'text-text-muted'}`}>{i + 1}</span>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-display text-[16px] text-text-primary truncate">{team.team_name}</p>
-                    <p className="text-[11px] text-text-muted/70 truncate mt-0.5">{team.progress >= 5 ? 'Mission complete' : `${team.progress ?? 0} fragment${team.progress === 1 ? '' : 's'} secured`}{team.last_correct_at ? ` · ${relativeTime(team.last_correct_at)}` : ''}</p>
+                    <p className="text-[11px] text-text-muted/70 truncate mt-0.5">{inVoid ? 'In the Null Void' : `${team.progress ?? 0} fragment${team.progress === 1 ? '' : 's'} secured`}{team.last_correct_at ? ` · ${relativeTime(team.last_correct_at)}` : ''}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0 w-24">
                     <div className="w-full h-[5px] rounded-full overflow-hidden bg-surface-alt"><div className="h-full rounded-full bg-teal" style={{ width: `${pct}%` }} /></div>
-                    <div className="flex items-center gap-2">{status && <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded ${TONE_CLASS[status.tone]}`}>{status.text}</span>}<span className="font-bebas text-lg leading-none text-text-secondary">{team.progress ?? 0}/5</span></div>
+                    <div className="flex items-center gap-2">{inVoid ? <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-void-gold/50 bg-void-gold/15 text-void-gold whitespace-nowrap">Null Void</span> : status && <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded ${TONE_CLASS[status.tone]}`}>{status.text}</span>}<span className="font-bebas text-lg leading-none text-text-secondary">{team.progress ?? 0}/5</span></div>
                   </div>
                 </div>
               )

@@ -1,9 +1,9 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Globe, Map, Trophy, QrCode, LogOut } from 'lucide-react'
+import { ChevronLeft, Globe, Map, Trophy, LogOut } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const NAV_ITEMS = [
-  { to: '/planet', key: 'planet', label: 'Planet', Icon: Globe },
+  { to: '/planet', key: 'planet', label: 'Fragments', Icon: Globe },
   { to: '/dashboard', key: 'journey', label: 'Journey', Icon: Map },
   { to: '/leaderboard', key: 'leaderboard', label: 'Leaderboard', Icon: Trophy },
 ]
@@ -31,15 +31,12 @@ export function Layout({ children, title = 'Your Journey' }) {
 
   return (
     <div className="min-h-screen bg-[#020712] flex items-center justify-center p-0 sm:p-4">
-      <div className="relative w-full max-w-[412px] h-[100dvh] sm:h-[min(917px,92dvh)] bg-bg flex flex-col overflow-hidden border-x sm:border border-surface-alt shadow-2xl sm:rounded-xl">
+      <div className="relative grain-frame w-full max-w-[412px] h-[100dvh] sm:h-[min(917px,92dvh)] bg-bg flex flex-col overflow-hidden border-x sm:border border-surface-alt shadow-2xl sm:rounded-xl">
         <header className="flex items-center justify-between px-4 h-[52px] border-b border-surface-alt/40 shrink-0">
           <button onClick={handleBack} aria-label="Go back" className="flex items-center gap-2 text-text-primary cursor-pointer">
             <ChevronLeft className="w-5 h-5" />
             <span className="font-display text-lg text-text-primary">{title}</span>
           </button>
-          <div className="w-8 h-8 text-accent" aria-hidden="true">
-            <QrCode className="w-8 h-8" strokeWidth={1.5} />
-          </div>
         </header>
 
         <main className="flex-1 flex flex-col overflow-y-auto">{children}</main>

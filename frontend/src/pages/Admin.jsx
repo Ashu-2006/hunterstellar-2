@@ -138,7 +138,7 @@ export default function Admin() {
 
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-bg flex items-center justify-center px-6">
+      <div className="relative min-h-screen bg-bg grain-frame flex items-center justify-center px-6">
         <div className="w-full max-w-sm flex flex-col items-center">
           <Rocket className="w-10 h-10 text-accent mb-4" strokeWidth={1.5} />
           <h1 className="text-2xl font-semibold text-text-primary mb-6">ODYSSEY ADMIN</h1>
@@ -168,7 +168,7 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
+    <div className="relative min-h-screen bg-bg grain-frame flex flex-col">
       <header className="border-b border-surface-alt px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-text-primary">
           <Rocket className="w-5 h-5 text-accent" />

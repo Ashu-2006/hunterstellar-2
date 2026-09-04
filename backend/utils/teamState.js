@@ -11,7 +11,16 @@ function shuffle(arr) {
 }
 
 const STATE_CACHE = new Map();
-const CACHE_TTL_MS = 1500;
+// Per-process only. On a multi-instance deploy two teammates can briefly see
+// different stages; the mitigation is client-side -- the verify endpoints
+// return the fresh state, so the client trusts a POST response over a poll.
+const CACHE_TTL_MS = 1000;
+
+// Set to "true" once the get_team_state RPC itself returns clue_images and
+// is_terminal (migration 003), which removes the hydration round trip below.
+// Defaulting to hydrating makes the deploy order-independent: the app is
+// correct whether or not the DB function has been updated yet.
+const HYDRATE_RPC_IMAGES = process.env.RPC_HAS_IMAGES !== "true";
 
 function invalidateTeamStateCache(userId) {
   if (userId) STATE_CACHE.delete(String(userId));
@@ -21,12 +30,71 @@ function invalidateAllTeamStateCache() {
   STATE_CACHE.clear();
 }
 
+/**
+ * Guarantees the fields the client renders exist on every state, whichever
+ * path produced it -- the RPC returns the DB function's shape verbatim, so
+ * without this the two paths drift apart silently.
+ */
+function normalizeState(state) {
+  if (!state || state.error) return state;
+  return {
+    ...state,
+    clue_images: Array.isArray(state.clue_images) ? state.clue_images : [],
+    is_terminal: state.is_terminal ?? null,
+  };
+}
+
+// Callers spread and mutate the state they get back, and the cache hands the
+// same object to everyone inside the TTL window. Copy on the way in and out.
+function cloneState(state) {
+  if (!state || typeof state !== "object") return state;
+  return { ...state, team: state.team ? { ...state.team } : state.team };
+}
+
+function cacheState(cacheKey, state) {
+  const normalized = normalizeState(state);
+  STATE_CACHE.set(cacheKey, { data: cloneState(normalized), ts: Date.now() });
+  return normalized;
+}
+
+/**
+ * The RPC strips `route`, so it cannot tell us which island the team is on.
+ * Re-reads the team to find the current stop, then fetches that island's art.
+ * Only runs on the clue screen, and only until migration 003 lands.
+ */
+async function hydrateClueImages(state, userId) {
+  if (state.stage !== "awaiting_code") return state;
+  if (state.clue_images && state.clue_images.length > 0) return state;
+
+  try {
+    const { data: team } = await teamModel.getById(userId);
+    const stop = team?.route?.[team.progress];
+    if (!stop?.island_id) return state;
+
+    const { data: island } = await supabase
+      .from("islands")
+      .select("clue_images, is_terminal")
+      .eq("id", stop.island_id)
+      .single();
+    if (!island) return state;
+
+    return {
+      ...state,
+      clue_images: Array.isArray(island.clue_images) ? island.clue_images : [],
+      is_terminal: island.is_terminal ?? state.is_terminal ?? null,
+    };
+  } catch {
+    // Art is decoration -- never fail the clue screen over it.
+    return state;
+  }
+}
+
 async function getTeamStateForUser(userId) {
   const cacheKey = String(userId);
   const now = Date.now();
   const cached = STATE_CACHE.get(cacheKey);
   if (cached && now - cached.ts < CACHE_TTL_MS) {
-    return cached.data;
+    return cloneState(cached.data);
   }
 
   // Try single-round-trip RPC first (requires migration get_team_state)
@@ -49,18 +117,21 @@ async function getTeamStateForUser(userId) {
           // One retry via RPC (avoid infinite loop)
           const retry = await supabase.rpc("get_team_state", { p_user_id: userId });
           if (!retry.error && retry.data) {
-            const r = typeof retry.data === "string" ? JSON.parse(retry.data) : retry.data;
-            STATE_CACHE.set(cacheKey, { data: r, ts: Date.now() });
-            return r;
+            let r = normalizeState(
+              typeof retry.data === "string" ? JSON.parse(retry.data) : retry.data,
+            );
+            if (HYDRATE_RPC_IMAGES) r = await hydrateClueImages(r, userId);
+            return cacheState(cacheKey, r);
           }
-          
+
         }
         // Handle team not found via RPC returning null
         if (data.team == null && data.stage == null) {
           // Fall through to sequential fallback which returns 404
         } else {
-          STATE_CACHE.set(cacheKey, { data, ts: now });
-          return data;
+          let state = normalizeState(data);
+          if (HYDRATE_RPC_IMAGES) state = await hydrateClueImages(state, userId);
+          return cacheState(cacheKey, state);
         }
       }
     }
@@ -97,8 +168,7 @@ async function getTeamStateForUser(userId) {
       notice,
       announcement,
     };
-    STATE_CACHE.set(cacheKey, { data: result, ts: now });
-    return result;
+    return cacheState(cacheKey, result);
   }
 
   let status = team.status;
@@ -126,14 +196,13 @@ async function getTeamStateForUser(userId) {
       notice,
       announcement,
     };
-    STATE_CACHE.set(cacheKey, { data: result, ts: now });
-    return result;
+    return cacheState(cacheKey, result);
   }
 
   if (team.stage === "awaiting_code") {
     const { data: island } = await supabase
       .from("islands")
-      .select("clue_statement")
+      .select("clue_statement, clue_images, is_terminal")
       .eq("id", currentStop.island_id)
       .single();
 
@@ -141,11 +210,14 @@ async function getTeamStateForUser(userId) {
       team: safeTeam,
       stage: "awaiting_code",
       clue_statement: island?.clue_statement,
+      clue_images: island?.clue_images,
+      // Display only. Whether this stop actually ends the hunt is decided by
+      // the route's question_id sentinel, not by this flag.
+      is_terminal: island?.is_terminal ?? currentStop.question_id === null,
       notice,
       announcement,
     };
-    STATE_CACHE.set(cacheKey, { data: result, ts: now });
-    return result;
+    return cacheState(cacheKey, result);
   }
 
   if (team.stage === "awaiting_puzzle") {
@@ -162,14 +234,12 @@ async function getTeamStateForUser(userId) {
       notice,
       announcement,
     };
-    STATE_CACHE.set(cacheKey, { data: result, ts: now });
-    return result;
+    return cacheState(cacheKey, result);
   }
 
   const result = { team: safeTeam, stage: team.stage || "ready", notice, announcement };
 
-  STATE_CACHE.set(cacheKey, { data: result, ts: now });
-  return result;
+  return cacheState(cacheKey, result);
 }
 
 async function buildRandomRoute() {

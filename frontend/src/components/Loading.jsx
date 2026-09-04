@@ -5,7 +5,7 @@ export function Loading({ label = 'Compiling navigation data...', full = false }
     <div
       className={
         full
-          ? 'min-h-screen bg-bg flex items-center justify-center'
+          ? 'relative min-h-screen bg-bg grain-frame flex items-center justify-center'
           : 'flex-1 flex items-center justify-center py-20'
       }
     >

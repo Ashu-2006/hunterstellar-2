@@ -3,7 +3,7 @@ const { rateLimit, ipKeyGenerator } = require("express-rate-limit");
 const verifyLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
-  keyGenerator: (req) => req.userId || ipKeyGenerator(req),
+  keyGenerator: (req) => req.userId || ipKeyGenerator(req.ip),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many attempts, slow down." },
@@ -12,7 +12,7 @@ const verifyLimiter = rateLimit({
 const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
-  keyGenerator: (req) => ipKeyGenerator(req),
+  keyGenerator: (req) => ipKeyGenerator(req.ip),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many login attempts, try again later" },
@@ -21,7 +21,7 @@ const loginLimiter = rateLimit({
 const adminLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
-  keyGenerator: (req) => ipKeyGenerator(req),
+  keyGenerator: (req) => ipKeyGenerator(req.ip),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many admin requests" },

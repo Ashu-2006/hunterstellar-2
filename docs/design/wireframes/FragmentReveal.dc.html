@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    :root{
+      --v0:#0B0A09;--v1:#131110;--h2:#1C1917;--h3:#262220;--h4:#383230;--h5:#4A423E;
+      --r4:#EA6A22;--r5:#C2410C;--em:#FDBA74;
+      --vg:#7C5CFF;--vd:#2A1B4D;
+      --g3:#FFD6A0;--g5:#B8860B;
+      --sg:#4EA8DE;--wa:#FBBF24;--fa:#F0503C;
+      --i0:#FAF7F2;--i1:#DCD5CC;--i3:#9A928A;--i5:#6B635D;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;width:360px;height:640px;background:var(--v0);color:var(--i1);
+      font-family:'Space Grotesk',system-ui,sans-serif;font-size:14px;
+      overflow:hidden;position:relative}
+    .grain{position:absolute;inset:0;pointer-events:none;z-index:9;opacity:.20;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3CfeColorMatrix type='luminanceToAlpha'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size:180px 180px}
+    .scan{position:absolute;inset:0;pointer-events:none;z-index:8;opacity:.42;
+      background:repeating-linear-gradient(180deg,transparent 0 2px,rgba(0,0,0,.18) 2px 3px)}
+    .vig{position:absolute;inset:0;pointer-events:none;z-index:7;
+      background:radial-gradient(ellipse at 50% 35%,transparent 42%,#0B0A09 100%);opacity:.85}
+    .wrap{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;padding:20px 24px 0}
+    .d{font-family:'Bebas Neue',Impact,sans-serif;letter-spacing:.02em;line-height:.92;color:var(--i0)}
+    .m{font-family:'JetBrains Mono',ui-monospace,monospace}
+    .lbl{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--i3);font-weight:700}
+    .plate{background:var(--h2);border:1px solid var(--h4);border-radius:8px;padding:16px}
+    .btn{height:48px;display:flex;align-items:center;justify-content:center;border-radius:8px;
+      background:var(--r4);color:#0B0A09;font-weight:700;letter-spacing:.08em;
+      text-transform:uppercase;font-size:13px}
+    .btn.ghost{background:transparent;border:1px solid var(--h5);color:var(--i1)}
+    .btn.void{background:var(--vg);color:#0B0A09}
+    .btn.off{background:var(--h4);color:var(--i5)}
+    .inp{height:48px;border-radius:8px;background:var(--v1);border:1px solid var(--h5);
+      display:flex;align-items:center;padding:0 14px;color:var(--i3);font-size:16px}
+    .inp.dim{opacity:.45}
+    .hint{font-size:12px;color:var(--i3);line-height:1.45}
+    .nav{position:absolute;left:0;right:0;bottom:0;height:64px;background:var(--h3);
+      border-top:1px solid var(--h4);display:grid;grid-template-columns:repeat(4,1fr);z-index:6}
+    .navi{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+      font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--i3)}
+    .navi.on{color:var(--r4)}
+    .rail{position:absolute;top:0;height:2px;background:var(--r4)}
+    .bar{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:6px;font-size:11px}
+    a{color:var(--sg);text-decoration:none}
+    a:hover{color:var(--em)}
+  </style>
+</helmet>
+<div class="grain"></div>
+<div class="scan"></div>
+<div class="vig"></div>
+
+<div class="wrap" style="padding-bottom:74px;align-items:center;justify-content:center;text-align:center">
+  <svg width='72' height='72' viewBox='0 0 40 40' fill='none' opacity='1'><path d='M20 3l13 9-4.5 18h-17L7 12z' stroke='#FFD6A0' stroke-width='1.5' stroke-linejoin='round'/><path d='M20 3v27M7 12l26 0' stroke='#FFD6A0' stroke-width='.7' stroke-opacity='.45'/></svg>
+  <div class="lbl" style="color:var(--g3);margin-top:20px">Fragment Recovered</div>
+  <div class="d" style="font-size:34px;color:var(--g3);margin-top:8px">Fragment II</div>
+  <div style="width:100%;margin-top:20px;border:1px solid rgba(255,214,160,.32);
+       background:rgba(255,214,160,.06);border-radius:8px;padding:16px">
+    <div class="m" style="font-size:12.5px;color:var(--g3);line-height:1.75;text-align:left">
+      burst signature matches the pulse profile &mdash; flagged, unexplained_
+    </div>
+  </div>
+  <div class="hint" style="margin-top:14px;font-size:11px">
+    Saved to Fragments. You can re-read it any time.
+  </div>
+  <div class="btn" style="width:100%;margin-top:auto;margin-bottom:18px">Plot Next Course</div>
+</div>
+<div class="nav"><div class="rail" style="left:25%;width:25%"></div><div class="navi"><svg width='20' height='20' viewBox='0 0 20 20' fill='none' stroke='#9A928A' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><circle cx='7' cy='9' r='2.4'/><circle cx='13' cy='9' r='2.4'/><path d='M3 17c0-2.6 2-4 5-4M17 17c0-2.6-2-4-5-4'/></svg><span>Crew</span></div><div class="navi on"><svg width='20' height='20' viewBox='0 0 20 20' fill='none' stroke='#EA6A22' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><circle cx='10' cy='10' r='7.5'/><path d='M7.5 10.5l2.5 2.5 4-5'/></svg><span>Journey</span></div><div class="navi"><span style='position:absolute;margin:-14px 0 0 16px;width:6px;height:6px;border-radius:50%;background:#FFD6A0'></span><svg width='20' height='20' viewBox='0 0 20 20' fill='none' stroke='#9A928A' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M10 2.5l5 4-1.8 6.5H6.8L5 6.5z'/><path d='M6.8 13L10 17.5 13.2 13'/></svg><span>Fragments</span></div><div class="navi"><svg width='20' height='20' viewBox='0 0 20 20' fill='none' stroke='#9A928A' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M4 16v-5M10 16V4M16 16v-8'/></svg><span>Ranks</span></div></div>
+</x-dc>
+</body>
+</html>

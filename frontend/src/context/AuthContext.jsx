@@ -1,69 +1,94 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useCallback, useContext, useState } from 'react'
 import api from '../api/client'
 
 const AuthContext = createContext(null)
 
+const TOKEN_KEY = 'odyssey_token'
+const USER_KEY = 'odyssey_user'
+// The old story-machine key. Cleared on logout so a stale copy can never
+// resurrect a flow gate that no longer exists.
+const LEGACY_FLOW_KEY = 'hunterstellar_flow'
+const FLOW_KEY = 'hunterstellar_v2'
+
+function readStored(key) {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('odyssey_user')
-    return saved ? JSON.parse(saved) : null
-  })
-  const [token, setToken] = useState(() => localStorage.getItem('odyssey_token'))
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (!token ) return
-    let cancelled = false
-    async function load() {
-      setLoading(true)
-      try {
-        const { data } = await api.get('/team/state')
-        if (cancelled) return
-        setUser(data.team)
-        localStorage.setItem('odyssey_user', JSON.stringify(data.team))
-      } catch {
-        if (!cancelled) {
-          setToken(null)
-          setUser(null)
-          localStorage.removeItem('odyssey_token')
-          localStorage.removeItem('odyssey_user')
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
+  const [user, setUser] = useState(() => readStored(USER_KEY))
+  const [token, setToken] = useState(() => {
+    try {
+      return localStorage.getItem(TOKEN_KEY)
+    } catch {
+      return null
     }
-    load()
-    return () => { cancelled = true }
-  }, [token])
+  })
 
-  async function login(teamName, password) {
+  /**
+   * This provider deliberately does NOT fetch /team/state.
+   *
+   * It used to, on every token change, while Dashboard fetched the same
+   * endpoint independently -- two round trips per login, and because this
+   * fetch replaced the `user` object, Dashboard's effect re-ran and churned
+   * its poll interval and realtime channel. `useTeamState` is the single
+   * owner now; an invalid token is caught by the 401 interceptor in
+   * api/client.js.
+   */
+
+  const login = useCallback(async (teamName, password) => {
     const { data } = await api.post('/login', {
       team_name: teamName,
       password,
     })
     setToken(data.token)
     setUser(data.user)
-    localStorage.setItem('odyssey_token', data.token)
-    localStorage.setItem('odyssey_user', JSON.stringify(data.user))
+    try {
+      localStorage.setItem(TOKEN_KEY, data.token)
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user))
+    } catch {
+      /* private mode — the session still works for this tab */
+    }
     return data
-  }
+  }, [])
 
-  function logout() {
+  const logout = useCallback(() => {
     setToken(null)
     setUser(null)
-    localStorage.removeItem('odyssey_token')
-    localStorage.removeItem('odyssey_user')
-    localStorage.removeItem('hunterstellar_flow')
-  }
+    try {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(USER_KEY)
+      localStorage.removeItem(FLOW_KEY)
+      localStorage.removeItem(LEGACY_FLOW_KEY)
+    } catch {
+      /* ignore */
+    }
+  }, [])
 
-  function updateUser(newUser) {
-    setUser(newUser)
-    localStorage.setItem('odyssey_user', JSON.stringify(newUser))
-  }
+  const updateUser = useCallback((next) => {
+    if (!next) return
+    setUser((prev) => {
+      // Bail out when nothing changed, so consumers depending on `user`
+      // identity do not re-run on every poll.
+      if (prev && prev.id === next.id && prev.progress === next.progress && prev.status === next.status) {
+        return prev
+      }
+      try {
+        localStorage.setItem(USER_KEY, JSON.stringify(next))
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }, [])
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading: false, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

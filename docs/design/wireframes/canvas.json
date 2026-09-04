@@ -1,0 +1,83 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 360, "h": 640, "title": "1 · Splash" },
+    { "file": "LoginIdle.dc.html", "x": 460, "y": 0, "w": 360, "h": 640, "title": "2 · Login" },
+    { "file": "LoginSubmitting.dc.html", "x": 920, "y": 0, "w": 360, "h": 640, "title": "2a · Signing in" },
+    { "file": "LoginError.dc.html", "x": 1380, "y": 0, "w": 360, "h": 640, "title": "2b · Login error" },
+
+    { "file": "Crew.dc.html", "x": 0, "y": 820, "w": 360, "h": 640, "title": "3 · Crew" },
+    { "file": "JourneyClue.dc.html", "x": 460, "y": 820, "w": 360, "h": 640, "title": "4 · Clue" },
+    { "file": "JourneyQuestion.dc.html", "x": 920, "y": 820, "w": 360, "h": 640, "title": "5 · Question" },
+    { "file": "FragmentReveal.dc.html", "x": 1380, "y": 820, "w": 360, "h": 640, "title": "6 · Fragment" },
+
+    { "file": "Complication1.dc.html", "x": 0, "y": 1640, "w": 360, "h": 640, "title": "7a · Assembling" },
+    { "file": "Complication2.dc.html", "x": 460, "y": 1640, "w": 360, "h": 640, "title": "7b · The lines" },
+    { "file": "Complication3.dc.html", "x": 920, "y": 1640, "w": 360, "h": 640, "title": "7c · The read" },
+    { "file": "Complication4.dc.html", "x": 1380, "y": 1640, "w": 360, "h": 640, "title": "7d · The turn" },
+
+    { "file": "NullVoid.dc.html", "x": 0, "y": 2460, "w": 360, "h": 640, "title": "8 · Null Void" },
+    { "file": "Finished.dc.html", "x": 460, "y": 2460, "w": 360, "h": 640, "title": "9 · Finished" },
+    { "file": "FragmentsPartial.dc.html", "x": 920, "y": 2460, "w": 360, "h": 640, "title": "10 · Fragments 2/4" },
+    { "file": "FragmentsComplete.dc.html", "x": 1380, "y": 2460, "w": 360, "h": 640, "title": "11 · Fragments 4/4" },
+
+    { "file": "Leaderboard.dc.html", "x": 0, "y": 3280, "w": 360, "h": 640, "title": "12 · Ranks" },
+    { "file": "JourneyLocked.dc.html", "x": 460, "y": 3280, "w": 360, "h": 640, "title": "13 · Locked out" },
+    { "file": "StateRateLimited.dc.html", "x": 920, "y": 3280, "w": 360, "h": 640, "title": "14 · Rate limited" },
+    { "file": "StateOffline.dc.html", "x": 1380, "y": 3280, "w": 360, "h": 640, "title": "15 · Offline" },
+
+    { "file": "StateSkeleton.dc.html", "x": 0, "y": 4100, "w": 360, "h": 640, "title": "16 · Loading" },
+    { "file": "NotFound.dc.html", "x": 460, "y": 4100, "w": 360, "h": 640, "title": "17 · 404" }
+  ],
+  "annotations": [
+    {
+      "id": "flow-entry",
+      "x": 0,
+      "y": -150,
+      "w": 400,
+      "text": "ENTRY — splash plays on first open and after logout only.\nA player already mid-hunt lands straight on their clue."
+    },
+    {
+      "id": "flow-loop",
+      "x": 0,
+      "y": 700,
+      "w": 400,
+      "text": "THE LOOP — repeats 4 times.\nClue → passcode → question → fragment → next clue.\nWrong CODE locks 15 min. Wrong ANSWER is free. That asymmetry is stated on both screens."
+    },
+    {
+      "id": "flow-turn",
+      "x": 0,
+      "y": 1520,
+      "w": 460,
+      "text": "THE TURN — fires once, after the 4th question.\nNav is hidden here (the only screen that hides it) and SKIP is present from t=0.\nThe headline isn't announcing a twist; it's restating what the player just read in the four lines."
+    },
+    {
+      "id": "flow-end",
+      "x": 0,
+      "y": 2340,
+      "w": 400,
+      "text": "THE END — the Null Void takes one last code, then the app is done.\nThe case study is physical; the Finished screen says so in those words."
+    },
+    {
+      "id": "flow-states",
+      "x": 0,
+      "y": 3160,
+      "w": 460,
+      "text": "EDGE STATES — these are most of the event-day experience.\nLocked and rate-limited keep the clue readable and route the player to Fragments; nothing is ever a dead end."
+    },
+    {
+      "id": "note-reveal",
+      "x": 1800,
+      "y": 820,
+      "w": 300,
+      "text": "PROGRESSIVE REVEAL\nThe rail is the mechanic. Locked stops show ··· and never a name. Stop 5 is a hairline outline until the turn, then violet.\nAll derived from the server's progress — no extra API."
+    },
+    {
+      "id": "note-copy",
+      "x": 1800,
+      "y": 1640,
+      "w": 300,
+      "text": "PLACEHOLDER COPY\nProlouge, the four fragment lines and beat 3 of the turn are yours to write. Shown here as shape and length so the layout is honest about what fits."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

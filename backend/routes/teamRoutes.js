@@ -81,16 +81,26 @@ router.post(
     }
 
     const { data: team } = await teamModel.getById(teamId);
-    if (!team || !team.route?.[team.progress]) {
+    if (!team) {
       return res.status(404).json({ message: "team doesn't exist" });
+    }
+    // Past the end of the route means the hunt is over, not that the team is
+    // missing -- a finished team polling this endpoint gets a clean answer.
+    if (!team.route?.[team.progress]) {
+      const state = await getTeamStateForUser(teamId);
+      return res.json({ success: false, reason: "finished", state });
     }
     const currentStop = team.route[team.progress];
 
     if (team.status === "locked" && new Date(team.lock_until) > new Date()) {
+      // Include `state` so the client renders the lock against fresh data
+      // instead of patching stage:"locked" onto whatever it had cached.
+      const state = await getTeamStateForUser(teamId);
       return res.json({
         success: false,
         reason: "locked",
         lock_until: team.lock_until,
+        state,
       });
     }
 
@@ -115,15 +125,25 @@ router.post(
     ) {
       const isLastStop = currentStop.question_id === null;
       const newProgress = isLastStop ? team.progress + 1 : team.progress;
+      const newStage = isLastStop ? "awaiting_code" : "awaiting_puzzle";
+      const newStatus = isLastStop ? "finished" : team.status;
 
-      await supabase
+      const updatePayload = { stage: newStage, progress: newProgress, status: newStatus };
+      const { data: updated, error: updateError } = await supabase
         .from("teams")
-        .update({
-          stage: isLastStop ? "awaiting_code" : "awaiting_puzzle",
-          progress: newProgress,
-          status: isLastStop ? "finished" : team.status,
-        })
-        .eq("id", teamId);
+        .update(updatePayload)
+        .eq("id", teamId)
+        .eq("stage", "awaiting_code")
+        .eq("progress", team.progress)
+        .select();
+
+      if (updateError) {
+        return res.status(500).json({ error: updateError.message });
+      }
+      if (!updated || updated.length === 0) {
+        const state = await getTeamStateForUser(teamId);
+        return res.json({ success: false, reason: "wrong_stage", state });
+      }
 
       invalidateTeamStateCache(teamId);
       const state = await getTeamStateForUser(teamId);
@@ -162,16 +182,24 @@ router.post(
     }
 
     const { data: team } = await teamModel.getById(req.userId);
-    if (!team || !team.route?.[team.progress]) {
+    if (!team) {
       return res.status(404).json({ message: "team doesn't exist" });
+    }
+    // Past the end of the route means the hunt is over, not that the team is
+    // missing -- a finished team polling this endpoint gets a clean answer.
+    if (!team.route?.[team.progress]) {
+      const state = await getTeamStateForUser(req.userId);
+      return res.json({ success: false, reason: "finished", state });
     }
     const currentStop = team.route[team.progress];
 
     if (team.status === "locked" && new Date(team.lock_until) > new Date()) {
+      const state = await getTeamStateForUser(req.userId);
       return res.json({
         success: false,
         reason: "locked",
         lock_until: team.lock_until,
+        state,
       });
     }
 
@@ -195,22 +223,49 @@ router.post(
       question.question_answer.trim().toLowerCase()
     ) {
       const newProgress = team.progress + 1;
-      await supabase
+      const newStatus = newProgress === 5 ? "finished" : team.status;
+
+      const updatePayload = {
+        stage: "awaiting_code",
+        progress: newProgress,
+        status: newStatus,
+        last_correct_at: new Date().toISOString(),
+      };
+      const { data: updated, error: updateError } = await supabase
         .from("teams")
-        .update({
-          stage: "awaiting_code",
-          progress: newProgress,
-          status: newProgress === 5 ? "finished" : team.status,
-          last_correct_at: new Date().toISOString(),
-        })
-        .eq("id", req.userId);
+        .update(updatePayload)
+        .eq("id", req.userId)
+        .eq("stage", "awaiting_puzzle")
+        .eq("progress", team.progress)
+        .select();
+
+      if (updateError) {
+        return res.status(500).json({ error: updateError.message });
+      }
+      if (!updated || updated.length === 0) {
+        const state = await getTeamStateForUser(req.userId);
+        return res.json({ success: false, reason: "wrong_stage", state });
+      }
 
       invalidateTeamStateCache(req.userId);
-      const state = await getTeamStateForUser(team.id);
-      return res.json({ success: true, state });
+      const state = await getTeamStateForUser(req.userId);
+      // `state` already describes the NEXT stop, so the client can show the
+      // fragment and then the next clue without another request.
+      //
+      // fragment_index is the new progress: solving the 1st stop earns
+      // Fragment I. Computed here so the client never has to infer it from a
+      // local diff that a racing teammate could have already moved.
+      return res.json({
+        success: true,
+        state,
+        fragment_index: newProgress,
+        solved_stop: team.progress,
+      });
     }
 
-    return res.json({ success: false });
+    // Wrong answers do not lock the team -- only wrong codes do. The client
+    // needs `reason` to tell this apart from an unrecognised failure.
+    return res.json({ success: false, reason: "wrong_answer" });
   },
 );
 

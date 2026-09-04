@@ -7,6 +7,13 @@ const morgan = require("morgan");
 const app = express();
 const PORT = process.env.PORT || 3005;
 
+// Behind Vercel (or any single reverse proxy) req.ip is the proxy's address
+// unless this is set, which would collapse every player onto one rate-limit
+// key -- 5 logins per minute for the whole event. Keep this at the exact
+// number of proxies in front of the app; `true` would let clients spoof
+// X-Forwarded-For and dodge the limiter entirely.
+app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS ?? 1));
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

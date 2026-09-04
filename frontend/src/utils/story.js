@@ -151,7 +151,57 @@ export function getPlanet(progress) {
 
 export const PLANET_LIST = [0, 1, 2, 3, 4].map((p) => STATIONS[p])
 
-// The fragment beat logged after a correct answer for a station.
-export function getStation(progress) {
+/* ==========================================================================
+ * DATA FRAGMENTS  —  the four lines teams collect, and what they assemble to.
+ *
+ * Keyed by PROGRESS INDEX, not by station: routes are randomised per team, so
+ * every team visits different islands in a different order. Keying on progress
+ * is what guarantees all 150 teams collect the same four lines in the same
+ * order and end up with the same assembled message.
+ *
+ * The server sends `fragment_index` (1-4) on a correct answer; look the line
+ * up here. Solving the 1st stop earns Fragment I.
+ *
+ * ⚠️ REPLACE THE PLACEHOLDER COPY BELOW. This is the only place to edit it.
+ * ========================================================================== */
+
+export const FRAGMENT_COUNT = 4
+
+export const FRAGMENT_LABELS = {
+  1: 'Fragment I',
+  2: 'Fragment II',
+  3: 'Fragment III',
+  4: 'Fragment IV',
+}
+
+export const FRAGMENT_LINES = {
+  1: 'TODO — replace with fragment one.',
+  2: 'TODO — replace with fragment two.',
+  3: 'TODO — replace with fragment three.',
+  4: 'TODO — replace with fragment four.',
+}
+
+// Shown once all four are collected. This is what the team carries into the
+// physical case study, so it must read as a complete instruction on its own.
+export const ASSEMBLED_MESSAGE =
+  'TODO — replace with the message the four fragments assemble into.'
+
+/** How many fragments a team has earned. Derived from the server's progress. */
+export function unlockedFragmentCount(progress) {
+  return Math.max(0, Math.min(FRAGMENT_COUNT, progress || 0))
+}
+
+export function getFragment(index) {
+  const line = FRAGMENT_LINES[index]
+  if (!line) return null
+  return { index, label: FRAGMENT_LABELS[index] || `Fragment ${index}`, line }
+}
+
+/**
+ * Narrative chapter for a stop. Deliberately NOT called a station: routes are
+ * randomised, so this name is flavour and will not match the physical place
+ * the team is standing in.
+ */
+export function getChapter(progress) {
   return STATIONS[Math.max(0, Math.min(4, progress || 0))]
 }
