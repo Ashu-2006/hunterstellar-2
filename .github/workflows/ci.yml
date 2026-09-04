@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch cancels the older run: on a busy branch the
+# only result anyone reads is the latest one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --workspaces --include-workspace-root
+      - name: Test
+        run: npm --workspace backend run test
+        # tests/setup.js stubs these; no real project is contacted. They exist
+        # because config/env.js validates at boot and app.js is imported by
+        # every suite.
+        env:
+          CI: true
+
+  frontend:
+    name: Frontend lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --workspaces --include-workspace-root
+
+      - name: Lint
+        run: npm --workspace frontend run lint
+
+      - name: Test
+        run: npm --workspace frontend run test
+
+      # Build is a separate step on purpose: eslint does not resolve module
+      # paths, so a deleted file that something still imports passes lint and
+      # fails the build. That exact case shipped once.
+      - name: Build
+        run: npm --workspace frontend run build
+
+  format:
+    name: Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --workspaces --include-workspace-root
+      - run: npm run format:check

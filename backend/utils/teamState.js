@@ -42,9 +42,7 @@ function normalizeState(state) {
     clue_images: Array.isArray(state.clue_images) ? state.clue_images : [],
     // Exposed as `question_images` to match `clue_images`; the column itself
     // is `questions.que_img`.
-    question_images: Array.isArray(state.question_images)
-      ? state.question_images
-      : [],
+    question_images: Array.isArray(state.question_images) ? state.question_images : [],
     is_terminal: state.is_terminal ?? null,
   };
 }
@@ -138,9 +136,15 @@ async function getTeamStateForUser(userId) {
 
       if (data && !data.error) {
         // Handle stale lock: if RPC still says locked but lock expired, fix row and retry once
-        if (data.stage === "locked" && data.lock_until && new Date(data.lock_until) <= new Date()) {
-
-          await supabase.from("teams").update({ status: "active", lock_until: null }).eq("id", userId);
+        if (
+          data.stage === "locked" &&
+          data.lock_until &&
+          new Date(data.lock_until) <= new Date()
+        ) {
+          await supabase
+            .from("teams")
+            .update({ status: "active", lock_until: null })
+            .eq("id", userId);
           STATE_CACHE.delete(cacheKey);
 
           // One retry via RPC (avoid infinite loop)
@@ -152,7 +156,6 @@ async function getTeamStateForUser(userId) {
             if (HYDRATE_RPC_IMAGES) r = await hydrateStopImages(r, userId);
             return cacheState(cacheKey, r);
           }
-
         }
         // Handle team not found via RPC returning null
         if (data.team == null && data.stage == null) {
@@ -201,7 +204,7 @@ async function getTeamStateForUser(userId) {
   }
 
   let status = team.status;
- if (
+  if (
     status === "locked" &&
     (!team.lock_until || new Date(team.lock_until) <= new Date())
   ) {
@@ -275,9 +278,7 @@ async function getTeamStateForUser(userId) {
 }
 
 async function buildRandomRoute() {
-  const { data: allIslands } = await supabase
-    .from("islands")
-    .select("*");
+  const { data: allIslands } = await supabase.from("islands").select("*");
 
   const groups = {};
   for (const island of allIslands) {
@@ -286,13 +287,11 @@ async function buildRandomRoute() {
     groups[o].push(island);
   }
 
-  const domains = shuffle(
-    [...new Set(
-      (await supabase.from("questions").select("domain")).data.map(
-        (d) => d.domain,
-      ),
-    )]
-  );
+  const domains = shuffle([
+    ...new Set(
+      (await supabase.from("questions").select("domain")).data.map((d) => d.domain),
+    ),
+  ]);
 
   const route = [];
   for (let o = 1; o <= 5; o++) {

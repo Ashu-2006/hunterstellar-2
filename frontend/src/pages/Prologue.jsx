@@ -1,10 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  PROLOGUE_EYEBROW,
-  PROLOGUE_PANELS,
-  PROLOGUE_TITLE,
-} from '../content/prologue'
+import { PROLOGUE_EYEBROW, PROLOGUE_PANELS, PROLOGUE_TITLE } from '../content/prologue'
 
 /**
  * The opening briefing, one beat at a time.

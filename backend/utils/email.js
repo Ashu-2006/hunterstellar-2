@@ -1,8 +1,6 @@
 const { Resend } = require("resend");
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const WELCOME_SUBJECT = "Hunterstellar 2.0 — your shuttlecraft credentials";
 
@@ -25,7 +23,9 @@ function renderWelcomeTemplate({ team_name, password, email }) {
 
 async function sendWelcomeEmail({ to, team_name, password, email }) {
   if (!resend) {
-    console.warn("Resend not configured (RESEND_API_KEY missing) — skipping welcome email.");
+    console.warn(
+      "Resend not configured (RESEND_API_KEY missing) — skipping welcome email.",
+    );
     return;
   }
 

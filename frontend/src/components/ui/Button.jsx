@@ -23,8 +23,7 @@
 
 const VARIANTS = {
   // Light green fill, dark ink. The one control that means "do the thing".
-  primary:
-    'bg-accent text-text-inverse hover:bg-accent-hover active:bg-accent-active',
+  primary: 'bg-accent text-text-inverse hover:bg-accent-hover active:bg-accent-active',
   // Outlined. For a choice that sits beside a primary without competing.
   secondary:
     'bg-transparent border border-border text-text-secondary hover:bg-surface hover:text-text-primary',

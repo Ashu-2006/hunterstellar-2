@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw, Trophy, Users } from 'lucide-react'
-import supabase from '../supabaseClient'
+import supabase from '../api/supabase'
 import { useAuth } from '../context/AuthContext'
-import { LeaderboardSkeleton } from '../components/Skeleton'
-import { Layout } from '../components/Layout'
+import { LeaderboardSkeleton } from '../components/ui/Skeleton'
+import { Layout } from '../components/shell/Layout'
 
 /**
  * Standings.
@@ -50,7 +50,9 @@ const BASE_COLUMNS = 'team_name, progress, status, last_correct_at'
  * frontend ahead of the migration takes the whole leaderboard down.
  */
 async function fetchRows() {
-  const withVoid = await supabase.from('leaderboard').select(`${BASE_COLUMNS}, in_null_void`)
+  const withVoid = await supabase
+    .from('leaderboard')
+    .select(`${BASE_COLUMNS}, in_null_void`)
   if (!withVoid.error) return withVoid.data || []
 
   const legacy = await supabase.from('leaderboard').select(BASE_COLUMNS)
@@ -105,7 +107,8 @@ export default function Leaderboard() {
   const displayError = configured ? error : 'Live standings are not configured.'
 
   const sorted = [...teams].sort((a, b) => {
-    if ((b.progress ?? 0) !== (a.progress ?? 0)) return (b.progress ?? 0) - (a.progress ?? 0)
+    if ((b.progress ?? 0) !== (a.progress ?? 0))
+      return (b.progress ?? 0) - (a.progress ?? 0)
     if (a.last_correct_at && b.last_correct_at)
       return new Date(a.last_correct_at) - new Date(b.last_correct_at)
     if (a.last_correct_at) return -1
@@ -137,8 +140,14 @@ export default function Leaderboard() {
     // the same thing as a query that failed.
     body = (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <Users className="w-10 h-10 text-text-muted" strokeWidth={1.4} aria-hidden="true" />
-        <p className="text-text-primary text-[16px] font-medium">No crews registered yet.</p>
+        <Users
+          className="w-10 h-10 text-text-muted"
+          strokeWidth={1.4}
+          aria-hidden="true"
+        />
+        <p className="text-text-primary text-[16px] font-medium">
+          No crews registered yet.
+        </p>
         <p className="text-text-muted text-[14px] max-w-[240px]">
           Be the first to solve a station challenge and claim the top of the route.
         </p>
@@ -205,7 +214,12 @@ function Row({ team, rank, isSelf }) {
 
   const nameTone = first || third ? 'text-text-inverse' : 'text-text-primary'
   const metaTone = first || third ? 'text-text-inverse/70' : 'text-text-muted'
-  const rankTone = first || third ? 'text-text-inverse' : second ? 'text-text-secondary' : 'text-text-muted'
+  const rankTone =
+    first || third
+      ? 'text-text-inverse'
+      : second
+        ? 'text-text-secondary'
+        : 'text-text-muted'
 
   return (
     <li
@@ -221,7 +235,9 @@ function Row({ team, rank, isSelf }) {
 
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <div className="flex items-center gap-2 min-w-0">
-          <p className={`font-display text-[16px] truncate ${nameTone}`}>{team.team_name}</p>
+          <p className={`font-display text-[16px] truncate ${nameTone}`}>
+            {team.team_name}
+          </p>
           {first && (
             <Trophy
               className="w-4 h-4 shrink-0 text-text-inverse"

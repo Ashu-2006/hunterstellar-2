@@ -3,7 +3,10 @@ const supabase = require("../db/supabaseClient");
 const teamModel = require("../db/teamModel");
 const { requireAdmin } = require("../middleware/auth");
 const { adminLimiter } = require("../middleware/rateLimit");
-const { invalidateTeamStateCache, invalidateAllTeamStateCache } = require("../utils/teamState");
+const {
+  invalidateTeamStateCache,
+  invalidateAllTeamStateCache,
+} = require("../utils/teamState");
 const { invalidateEventConfigCache } = require("../utils/eventConfigCache");
 
 const router = express.Router();

@@ -4,7 +4,12 @@ import { useAuth } from '../context/AuthContext'
 import { Wordmark } from '../components/brand/Wordmark'
 import { SESSION_NOTICE_KEY } from '../api/client'
 import { useOnline } from '../hooks/useOnline'
-import { describeError, formatCountdown, retryAfterSeconds, RETRY } from '../utils/errorCopy'
+import {
+  describeError,
+  formatCountdown,
+  retryAfterSeconds,
+  RETRY,
+} from '../lib/errorCopy'
 
 export default function Login() {
   const { login } = useAuth()
@@ -41,7 +46,9 @@ export default function Login() {
     return () => clearInterval(t)
   }, [blockedUntil])
 
-  const secondsLeft = blockedUntil ? Math.max(0, Math.round((blockedUntil - now) / 1000)) : 0
+  const secondsLeft = blockedUntil
+    ? Math.max(0, Math.round((blockedUntil - now) / 1000))
+    : 0
 
   const canSubmit =
     teamName.trim() && password.trim() && !loading && online && secondsLeft === 0
@@ -58,7 +65,7 @@ export default function Login() {
       // Fragments tab and never gates play: a crew signing in at the venue is
       // usually already standing at a station, and making them read first is
       // the one thing this app must not do.
-      navigate('/dashboard', { replace: true })
+      navigate('/journey', { replace: true })
     } catch (err) {
       const described = describeError(err, 'login')
       setError(described)
@@ -81,7 +88,11 @@ export default function Login() {
           <div className="flex flex-col items-center gap-16 w-full max-w-sm">
             <Wordmark width={240} />
 
-            <form onSubmit={handleSubmit} className="w-full flex flex-col gap-7" noValidate>
+            <form
+              onSubmit={handleSubmit}
+              className="w-full flex flex-col gap-7"
+              noValidate
+            >
               {/* Wording is copied from the registration form, deliberately.
                   A team under pressure is reading their confirmation email in
                   one hand and this screen in the other; three different names

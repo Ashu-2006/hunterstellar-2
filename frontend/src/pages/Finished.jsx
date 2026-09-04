@@ -1,8 +1,8 @@
 import { Link, Navigate } from 'react-router-dom'
-import { Layout } from '../components/Layout'
+import { Layout } from '../components/shell/Layout'
 import { Wordmark } from '../components/brand/Wordmark'
 import { useAuth } from '../context/AuthContext'
-import { FragmentRecord } from '../components/FragmentRecord'
+import { FragmentRecord } from '../components/fragments/FragmentRecord'
 import {
   ASSEMBLED_MESSAGE,
   FRAGMENTS,
@@ -33,7 +33,7 @@ export default function Finished() {
    * the ending.
    */
   const finished = user?.status === 'finished' || (user?.progress ?? 0) >= 5
-  if (!finished) return <Navigate to="/dashboard" replace />
+  if (!finished) return <Navigate to="/journey" replace />
 
   return (
     <Layout title="The Null Void">
@@ -55,10 +55,20 @@ export default function Finished() {
               </p>
             ) : (
               // The case study is argued from these records, so put them in
-              // front of the team rather than making them tab away mid-answer.
+              // front of the crew rather than making them tab away mid-answer.
+              //
+              // Each one is labelled here. FragmentRecord no longer prints a
+              // header of its own, so four unlabelled runs of mono would read
+              // as one twelve-paragraph wall with no way to cite a fragment by
+              // name while arguing.
               <div className="flex flex-col gap-5">
                 {Object.values(FRAGMENTS).map((fragment) => (
-                  <FragmentRecord key={fragment.index} fragment={fragment} dense />
+                  <div key={fragment.index} className="flex flex-col gap-1.5">
+                    <span className="font-mono text-[11px] uppercase tracking-[0.24em] text-void-gold/80">
+                      {fragment.label}
+                    </span>
+                    <FragmentRecord fragment={fragment} dense />
+                  </div>
                 ))}
               </div>
             )}
@@ -66,18 +76,20 @@ export default function Finished() {
         )}
 
         <div className="w-full rounded-md border border-accent/40 bg-accent/10 px-4 py-4 flex flex-col gap-2">
-          <p className="text-accent text-[15px] font-medium">The final challenge is physical.</p>
+          <p className="text-accent text-[15px] font-medium">
+            The final challenge is physical.
+          </p>
           <p className="text-text-secondary text-sm leading-relaxed">
             Report to the marshals with your assembled transmission. The last problem is a
-            case study, solved in person rather than in this app. Nothing further happens on
-            this screen.
+            case study, solved in person rather than in this app. Nothing further happens
+            on this screen.
           </p>
         </div>
 
         <div className="w-full flex flex-col gap-3 text-text-secondary text-[15px] leading-relaxed">
           <p>
-            Four shards, four star systems, one record that was never meant to be
-            read back in order. Vilgax never reached them.
+            Four shards, four star systems, one record that was never meant to be read
+            back in order. Vilgax never reached them.
           </p>
           <p className="text-text-muted">
             What you do with it is no longer the Omnitrix&rsquo;s decision.
@@ -92,7 +104,8 @@ export default function Finished() {
         </Link>
 
         <p className="text-text-muted text-[12px] text-center">
-          Presented by <span className="font-semibold">ASTRONOMY &amp; PHYSICS SOCIETY</span>
+          Presented by{' '}
+          <span className="font-semibold">ASTRONOMY &amp; PHYSICS SOCIETY</span>
         </p>
       </div>
     </Layout>

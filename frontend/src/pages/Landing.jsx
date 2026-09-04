@@ -51,7 +51,8 @@ export default function Landing() {
             </p>
           </div>
           <p className="text-text-primary text-center text-[15px] tracking-normal leading-snug whitespace-nowrap px-3">
-            Presented by <span className="font-semibold">ASTRONOMY &amp; PHYSICS SOCIETY</span>
+            Presented by{' '}
+            <span className="font-semibold">ASTRONOMY &amp; PHYSICS SOCIETY</span>
           </p>
         </div>
 
