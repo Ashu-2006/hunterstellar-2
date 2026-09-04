@@ -28,33 +28,36 @@ export default function Admin() {
   }, [adminSecret])
 
   useEffect(() => {
-    if (!authenticated || !supabase) return undefined
+    if (!authenticated) return
 
-    // Realtime is a nudge to re-read, not a source of state: the payload is a
-    // raw `teams` row, so the list is always refetched rather than patched.
+    // MEMOIZED Supabase realtime channel (only created once)
     const channel = supabase
       .channel('admin-teams-changes')
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'teams' },
         () => {
+          // The payload is a single changed row; simpler and less
+          // error-prone to refetch the list than to patch it in place.
           fetchTeams()
         },
       )
       .subscribe()
 
-    // Deferred to a microtask so the first load is not a synchronous setState
-    // in the effect body, which cascades renders.
-    const kick = setTimeout(fetchTeams, 0)
+    // Fetch-on-mount. The lint rule objects to any setState reached
+    // synchronously from an effect body, but this is the initial load of a
+    // list that has no other trigger -- the same exception Leaderboard.jsx
+    // takes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchTeams()
     const interval = setInterval(fetchTeams, 5000)
-
     return () => {
       supabase.removeChannel(channel)
-      clearTimeout(kick)
       clearInterval(interval)
     }
-    // `fetchTeams` is memoised on adminSecret, which cannot change while
-    // authenticated, so including it does not re-subscribe on every render.
+    // `fetchTeams` is memoised on adminSecret, which only changes while the
+    // auth form is on screen -- and this effect returns early then. So
+    // including it is honest and costs nothing.
   }, [authenticated, fetchTeams])
 
   async function handleAuth(e) {

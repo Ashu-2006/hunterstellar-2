@@ -200,7 +200,7 @@ function Row({ team, rank, isSelf }) {
     : second
       ? 'bg-transparent border-text-secondary'
       : third
-        ? 'bg-[#e8e8e8] border-[#e8e8e8]'
+        ? 'bg-text-primary border-text-primary'
         : 'card-noise border-surface-alt/50'
 
   const nameTone = first || third ? 'text-text-inverse' : 'text-text-primary'

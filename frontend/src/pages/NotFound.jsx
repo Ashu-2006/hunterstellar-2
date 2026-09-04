@@ -18,7 +18,7 @@ export default function NotFound() {
             </p>
             <Link
               to="/"
-              className="bg-[#f6f6f6] text-text-inverse px-8 py-3 rounded-md font-display text-base no-underline"
+              className="motion-press inline-flex min-h-11 items-center rounded-md bg-accent px-8 font-display text-base text-text-inverse no-underline"
             >
               Recall to Base
             </Link>

@@ -44,7 +44,7 @@ export function StateView({
         {canRetry && onRetry && (
           <button
             onClick={onRetry}
-            className="mt-3 inline-flex items-center gap-2 bg-[#f6f6f6] text-text-inverse px-6 py-2.5 rounded-md font-display text-sm cursor-pointer"
+            className="motion-press mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md bg-accent px-6 font-display text-sm text-text-inverse"
           >
             <RefreshCw className="w-4 h-4" />
             Try again

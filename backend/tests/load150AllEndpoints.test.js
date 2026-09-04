@@ -28,9 +28,10 @@ let PASSWORD_HASH;
  * Three separate rate limiters shape what "all at once" can even mean here,
  * and they key on different things:
  *
- *   verifyLimiter  10 / 15 min  per userId  -- each team has its own budget
- *   loginLimiter    5 / 60 s    per IP      -- shared by everyone behind a NAT
- *   adminLimiter   30 / 60 s    per IP      -- shared by the whole dashboard
+ *   verifyLimiter   10 / 15 min  per userId    -- each team has its own budget
+ *   loginLimiter     5 / 60 s    per team_name -- each callsign has its own
+ *   loginIpLimiter 300 / 60 s    per IP        -- abuse backstop only
+ *   adminLimiter    30 / 60 s    per IP        -- shared by the whole dashboard
  *
  * Tests that would exceed a per-IP budget assert the throttling that actually
  * happens rather than pretending it does not exist.
@@ -269,7 +270,7 @@ describe(TEAM_COUNT + " concurrent teams across every endpoint", () => {
   });
 
   describe("POST /api/login", () => {
-    test("150 teams logging in from one IP are throttled to 5 per minute", async () => {
+    test("150 distinct teams behind one IP all sign in", async () => {
       const teams = seedTeams("login");
 
       const responses = await Promise.all(
@@ -283,11 +284,13 @@ describe(TEAM_COUNT + " concurrent teams across every endpoint", () => {
       const ok = responses.filter((r) => r.status === 200);
       const throttled = responses.filter((r) => r.status === 429);
 
-      // loginLimiter keys on IP, so a whole venue behind one NAT shares these
-      // five slots -- see the note in the suite header.
-      expect(ok).toHaveLength(5);
-      expect(throttled).toHaveLength(TEAM_COUNT - 5);
-      expect(ok.concat(throttled)).toHaveLength(TEAM_COUNT);
+      // The login budget is per CALLSIGN, not per IP. This is the whole point
+      // of that choice: players are on mobile data behind carrier CGNAT, so
+      // hundreds of unrelated crews share a handful of public addresses. Under
+      // the old per-IP rule this assertion was `ok = 5` and 145 real teams were
+      // turned away at the door.
+      expect(ok).toHaveLength(TEAM_COUNT);
+      expect(throttled).toHaveLength(0);
 
       for (const res of ok) {
         expect(res.body.token).toBeTruthy();

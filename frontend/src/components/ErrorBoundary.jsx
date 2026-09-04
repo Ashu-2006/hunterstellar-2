@@ -49,7 +49,7 @@ export default class ErrorBoundary extends Component {
           </p>
           <button
             onClick={this.reset}
-            className="mt-2 w-full h-[48px] bg-[#f6f6f6] text-text-inverse rounded-md font-display cursor-pointer"
+            className="motion-press mt-2 h-[48px] w-full cursor-pointer rounded-md bg-accent font-display text-text-inverse"
           >
             Try again
           </button>

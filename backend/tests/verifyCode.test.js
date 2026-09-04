@@ -41,7 +41,7 @@ describe("Verify code behavior", () => {
     return team;
   }
 
-  test("wrong code returns locked, increments wrong_attempts, sets lock_until +15min", async () => {
+  test("wrong code returns locked, increments wrong_attempts, sets lock_until +7min", async () => {
     setup();
     const before = Date.now();
     const res = await request(app)
@@ -55,8 +55,9 @@ describe("Verify code behavior", () => {
     expect(res.body.reason).toBe("wrong_code");
     expect(res.body.lock_until).toBeDefined();
     const lockUntil = new Date(res.body.lock_until).getTime();
-    expect(lockUntil).toBeGreaterThanOrEqual(before + 14 * 60 * 1000);
-    expect(lockUntil).toBeLessThanOrEqual(after + 16 * 60 * 1000);
+    // 7 minutes, with a minute of slack either side for slow CI.
+    expect(lockUntil).toBeGreaterThanOrEqual(before + 6 * 60 * 1000);
+    expect(lockUntil).toBeLessThanOrEqual(after + 8 * 60 * 1000);
 
     const team = mockSupabase.__testing.getTable("teams").find(t => t.id === "team-a");
     expect(team.status).toBe("locked");
@@ -198,4 +199,68 @@ describe("Verify code behavior", () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("enteredCode required");
   });
+
+  /**
+   * Found in live data: a team sat at status:"locked" while already on the
+   * puzzle screen, with an expired lock_until.
+   *
+   * A wrong code stamps status:"locked" + lock_until. The expiry is only
+   * cleared on a state READ, so a team that submits the right code before any
+   * read happens used to advance with "locked" carried forward.
+   *
+   * This test installs the get_team_state RPC on purpose. Production runs the
+   * RPC path, and its stale-lock branch only fires when the RPC reports
+   * stage:"locked" -- which it does not once the team has moved to the puzzle.
+   * The sequential fallback DOES self-heal, so without an RPC registered this
+   * test passes whether or not the bug is fixed. That divergence is exactly
+   * how the bug reached live data in the first place.
+   */
+  test("a correct code clears an expired lock instead of carrying it forward", async () => {
+    setup({
+      status: "locked",
+      lock_until: new Date(Date.now() - 60 * 1000).toISOString(), // expired
+      wrong_attempts: 1,
+    });
+
+    // Mirrors the real DB function: reports the row as it now stands, and has
+    // no opinion about stale locks.
+    mockSupabase.__testing.setRpc("get_team_state", () => {
+      const row = mockSupabase.__testing.getTable("teams")[0];
+      return {
+        data: { team: { ...row }, stage: row.stage, question: "Q1" },
+        error: null,
+      };
+    });
+
+    const res = await request(app)
+      .post("/api/team/verify-code")
+      .set("Authorization", `Bearer ${signToken("team-a")}`)
+      .send({ enteredCode: "CODE1" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    const row = mockSupabase.__testing.getTable("teams")[0];
+    expect(row.stage).toBe("awaiting_puzzle");
+    expect(row.status).toBe("active");
+    expect(row.lock_until).toBeNull();
+  });
+
+  test("an unexpired lock still blocks, and nothing is cleared", async () => {
+    const lockUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    setup({ status: "locked", lock_until: lockUntil, wrong_attempts: 1 });
+
+    const res = await request(app)
+      .post("/api/team/verify-code")
+      .set("Authorization", `Bearer ${signToken("team-a")}`)
+      .send({ enteredCode: "CODE1" });
+
+    expect(res.body.success).toBe(false);
+    expect(res.body.reason).toBe("locked");
+
+    const row = mockSupabase.__testing.getTable("teams")[0];
+    expect(row.status).toBe("locked");
+    expect(row.stage).toBe("awaiting_code");
+  });
+
 });

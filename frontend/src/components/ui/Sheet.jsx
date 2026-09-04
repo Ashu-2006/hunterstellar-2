@@ -13,9 +13,12 @@ import { X } from 'lucide-react'
  * the forward axis, because a sheet that arrives from below and exits sideways
  * breaks the spatial model the player just built.
  *
- * Portalled into `#hs-sheet-root`, which Layout renders inside the 412px phone
- * frame. That keeps the sheet clipped to the frame instead of spanning a
- * desktop viewport, which is what `position: fixed` would have done.
+ * Portalled into `#hs-sheet-root`, which Layout pins to the viewport. The page
+ * itself scrolls, so the sheet cannot be absolutely positioned inside the
+ * content column: it would land at the bottom of the document rather than the
+ * bottom of the screen. It is fixed to the viewport and re-centred to the same
+ * max-width as the column, so on a phone it is full-bleed and on a desktop it
+ * rises inside the column rather than spanning the whole window.
  *
  * A11y contract, all of it load-bearing because this is the only new primitive:
  *   - role="dialog" + aria-modal, labelled by its own title
@@ -201,7 +204,9 @@ export function Sheet({
     typeof document === 'undefined' ? null : document.getElementById('hs-sheet-root')
   if (!root) return null
 
-  const heightClass = detent === 'full' ? 'h-[86%]' : 'max-h-[86%]'
+  // Against the viewport now, so dvh rather than a percentage of a parent that
+  // no longer has a fixed height.
+  const heightClass = detent === 'full' ? 'h-[86dvh]' : 'max-h-[86dvh]'
   const dragging = dragY !== null
 
   return createPortal(
@@ -209,7 +214,7 @@ export function Sheet({
       <div
         aria-hidden="true"
         onClick={onClose}
-        className={`absolute inset-0 bg-black/70 pointer-events-auto ${
+        className={`pointer-events-auto fixed inset-0 bg-black/70 ${
           closing ? 'motion-scrim-out' : 'motion-scrim-in'
         }`}
       />
@@ -222,8 +227,8 @@ export function Sheet({
         aria-label={bare ? title : undefined}
         tabIndex={-1}
         style={dragging ? { transform: `translateY(${dragY}px)` } : undefined}
-        className={`absolute left-0 right-0 bottom-0 ${heightClass} pointer-events-auto
-          bg-surface border-t border-border flex flex-col outline-none
+        className={`pointer-events-auto fixed inset-x-0 bottom-0 mx-auto w-full max-w-[560px]
+          ${heightClass} flex flex-col border-t border-border bg-surface outline-none
           focus-visible:ring-1 focus-visible:ring-accent
           ${dragging ? '' : closing ? 'motion-sheet-out' : 'motion-sheet-in'}`}
       >

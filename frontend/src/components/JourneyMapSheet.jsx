@@ -1,42 +1,53 @@
-import { Check, Lock, Star } from 'lucide-react'
+import { Check, Lock } from 'lucide-react'
 import { Sheet } from './ui/Sheet'
-import { PLANET_LIST } from '../utils/story'
+import { STATION_COUNT, STOP_COUNT } from '../utils/rules'
 
 /**
  * The whole route, one tap from the clue.
  *
- * This is where the deleted ProgressBar's information went. The bar knew all of
- * this already but showed it as six 32px circles with 8px labels squeezed above
- * the clue. Here the same five stops get a row each, at a size a player can
- * read while walking.
+ * This is where the deleted `ui/ProgressBar` went. The bar rendered six 32px
+ * circles with connector rails and a row of 8px labels, squeezed directly
+ * above the clue and directly below an eyebrow that already said the same
+ * thing in words. Two channels for one fact, and the bar was the redundant
+ * one, so the fact stays and the bar went.
  *
- * Names are revealed progressively, exactly as the bar did: a station the team
- * has not reached shows as "Unknown", because the route is randomised per team
- * and naming an unvisited stop would give away where they are being sent.
+ * There are deliberately no station names here. The route is randomised per
+ * crew and the content model carries no per-station identity, so a name would
+ * either be invented or would give away where a crew is being sent. Position
+ * is the honest signal: how many are cleared, which one you are on, and that
+ * the last one changes the rules.
  */
-
 const NUMERALS = ['I', 'II', 'III', 'IV', 'V']
 
 export function JourneyMapSheet({ open, onClose, progress = 0 }) {
-  const current = Math.min(Math.max(progress, 0), 4)
+  const current = Math.min(Math.max(progress, 0), STOP_COUNT - 1)
+
+  /**
+   * The fifth row appears only once the fourth station is cleared, matching
+   * StopIndicator. Listing a locked "Null Void" from the start would tell a
+   * crew the Void exists before they have earned the right to know, which is
+   * the one spoiler this screen could leak.
+   */
+  const visibleStops = progress >= STATION_COUNT ? STOP_COUNT : STATION_COUNT
 
   return (
     <Sheet open={open} onClose={onClose} title="Your route" detent="auto">
-      <p className="text-[13px] text-text-muted leading-relaxed mb-5">
-        Five stops. Every crew gets a different order, so these names are yours
-        alone and only appear once you arrive.
+      <p className="mb-5 text-[13px] leading-relaxed text-text-muted">
+        {visibleStops === STOP_COUNT
+          ? `${STATION_COUNT} stations cleared, and then the Null Void.`
+          : `${STATION_COUNT} stations. Every crew is sent through them in a different order, so nobody can follow the crew ahead.`}
       </p>
 
       <ol className="flex flex-col">
-        {PLANET_LIST.map((planet, i) => {
+        {Array.from({ length: visibleStops }, (_, i) => i).map((i) => {
           const done = i < current
           const active = i === current
-          const unknown = i > current
-          const terminal = planet.kind === 'terminal'
+          const locked = i > current
+          const terminal = i === STOP_COUNT - 1
 
           return (
             <li
-              key={planet.name}
+              key={i}
               aria-current={active ? 'step' : undefined}
               className={`flex items-start gap-3.5 py-3.5 ${
                 i > 0 ? 'border-t border-border/60' : ''
@@ -44,57 +55,49 @@ export function JourneyMapSheet({ open, onClose, progress = 0 }) {
             >
               <span
                 aria-hidden="true"
-                className={`shrink-0 w-8 h-8 flex items-center justify-center border
-                  font-mono text-[12px] ${
-                    done
-                      ? 'border-green/50 bg-green/10 text-green'
-                      : active
-                        ? terminal
-                          ? 'border-void-gold bg-void-gold/15 text-void-gold'
-                          : 'border-accent bg-accent/15 text-accent'
-                        : 'border-dashed border-border text-text-muted/50'
-                  }`}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center border font-mono text-[12px] ${
+                  done
+                    ? 'border-accent/50 bg-accent/10 text-accent'
+                    : active
+                      ? terminal
+                        ? 'border-indigo bg-indigo/15 text-indigo'
+                        : 'border-accent bg-accent/15 text-accent'
+                      : 'border-dashed border-border text-text-muted/50'
+                }`}
               >
                 {done ? (
-                  <Check className="w-4 h-4" strokeWidth={2.5} />
-                ) : unknown ? (
-                  <Lock className="w-3.5 h-3.5" strokeWidth={2} />
+                  <Check className="h-4 w-4" strokeWidth={2.5} />
+                ) : locked ? (
+                  <Lock className="h-3.5 w-3.5" strokeWidth={2} />
                 ) : (
                   NUMERALS[i]
                 )}
               </span>
 
-              <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={`text-[14px] truncate ${
-                      unknown
-                        ? 'text-text-muted/50'
-                        : active
-                          ? terminal
-                            ? 'text-void-gold font-medium'
-                            : 'text-text-primary font-medium'
-                          : 'text-text-secondary'
-                    }`}
-                  >
-                    {unknown ? 'Unknown' : planet.name}
-                  </span>
-                  {terminal && !unknown && (
-                    <Star
-                      className="w-3.5 h-3.5 shrink-0 text-void-gold"
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                  )}
-                </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span
+                  className={`truncate text-[14px] ${
+                    locked
+                      ? 'text-text-muted/60'
+                      : active
+                        ? terminal
+                          ? 'font-medium text-indigo'
+                          : 'font-medium text-text-primary'
+                        : 'text-text-secondary'
+                  }`}
+                >
+                  {terminal ? 'The Null Void' : `Station ${NUMERALS[i]}`}
+                </span>
                 <span className="text-[12px] text-text-muted">
                   {done
-                    ? 'Cleared'
+                    ? 'Fragment recovered'
                     : active
-                      ? 'You are here'
-                      : unknown
-                        ? 'Bearing not yet received'
-                        : planet.descriptor}
+                      ? terminal
+                        ? 'You are here. The last challenge is not in this app.'
+                        : 'You are here'
+                      : terminal
+                        ? 'Sealed until all four fragments are recovered'
+                        : 'Not yet reached'}
                 </span>
               </div>
             </li>

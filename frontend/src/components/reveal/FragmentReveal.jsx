@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { createScope, createTimeline, cubicBezier, stagger, svg } from 'animejs'
-import { getFragment } from '../../utils/story'
+import { getFragment } from '../../content/fragments'
+import { FragmentRecord } from '../FragmentRecord'
+import { Button } from '../ui/Button'
 import {
   BEZIER_ENTER,
   BEZIER_STANDARD,
@@ -120,14 +122,9 @@ export function FragmentReveal({ index, onContinue, isLast }) {
         <p className="text-[14px] text-text-muted">
           A fragment was recovered, but we could not read it on this device.
         </p>
-        <button
-          type="button"
-          onClick={onContinue}
-          className="w-full max-w-[280px] h-[52px] bg-[#f6f6f6] text-text-inverse rounded-md
-            font-display text-lg motion-press cursor-pointer"
-        >
+        <Button size="lg" onClick={onContinue} className="max-w-[280px]">
           Continue
-        </button>
+        </Button>
       </div>
     )
   }
@@ -150,21 +147,16 @@ export function FragmentReveal({ index, onContinue, isLast }) {
           Data fragment recovered
         </p>
         <h2
-          className="reveal-line display-grunge text-[46px] leading-none text-text-primary"
+          className="reveal-line display-grunge text-[clamp(2.25rem,10vw,2.875rem)] leading-none text-text-primary"
           style={settled ? undefined : { opacity: 0 }}
         >
           {fragment.label}
         </h2>
       </div>
 
-      <blockquote
-        className="reveal-line border-l-2 border-accent pl-4 py-1"
-        style={settled ? undefined : { opacity: 0 }}
-      >
-        <p className="text-text-primary text-[17px] leading-relaxed whitespace-pre-line">
-          {fragment.line}
-        </p>
-      </blockquote>
+      <div className="reveal-line" style={settled ? undefined : { opacity: 0 }}>
+        <FragmentRecord fragment={fragment} />
+      </div>
 
       <p
         className="reveal-line text-[12px] text-text-muted"
@@ -177,19 +169,15 @@ export function FragmentReveal({ index, onContinue, isLast }) {
 
       {/* Live from the first frame. A button that only works once an animation
           finishes is the thing that makes motion feel like an obstacle. */}
-      <button
-        type="button"
+      <Button
+        size="lg"
         onClick={(e) => {
           e.stopPropagation()
           onContinue()
         }}
-        className="w-full h-[52px] bg-[#f6f6f6] text-text-inverse rounded-md font-display
-          text-lg motion-press cursor-pointer
-          focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent
-          focus-visible:outline-offset-2"
       >
         {isLast ? 'Continue to the Null Void' : 'Continue'}
-      </button>
+      </Button>
     </div>
   )
 }

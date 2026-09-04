@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCountdown } from '../hooks/useCountdown'
+import { LOCKOUT_MINUTES } from '../utils/rules'
+import { Button } from './ui/Button'
 
 /**
  * Being locked out is the entire state, so it gets the entire screen.
@@ -11,7 +13,7 @@ import { useCountdown } from '../hooks/useCountdown'
  * the mechanism: as a banner it was one strip in a stack of eleven, sitting
  * above an empty body that said "Entry reopens when the timer runs out."
  *
- * A team that cannot act for fifteen minutes needs to know three things
+ * A crew that cannot act for several minutes needs to know three things
  * immediately: what happened, how long, and what they can still do. A strip
  * buried in chrome delivers none of them at a glance. So the screen names the
  * state, gives the clock the largest type on it, and offers the one action
@@ -64,19 +66,12 @@ export function LockoutScreen({ lockUntil, onExpire }) {
       <p className="text-[14px] text-text-secondary leading-relaxed max-w-[280px]">
         {indefinite
           ? 'Your crew is locked out, but the shuttle did not report how long. Show this screen to a marshal.'
-          : 'A wrong code costs fifteen minutes. Your fragments are still readable while you wait.'}
+          : `A wrong code costs ${LOCKOUT_MINUTES} minutes. Your fragments are still readable while you wait.`}
       </p>
 
-      <button
-        type="button"
-        onClick={() => navigate('/planet')}
-        className="w-full max-w-[280px] h-[52px] bg-[#f6f6f6] text-text-inverse rounded-md
-          font-display text-lg motion-press cursor-pointer
-          focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent
-          focus-visible:outline-offset-2"
-      >
+      <Button size="lg" onClick={() => navigate('/planet')} className="max-w-[280px]">
         Read fragments
-      </button>
+      </Button>
 
       {!indefinite && (
         <p className="text-[12px] text-text-muted max-w-[280px]">

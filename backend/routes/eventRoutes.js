@@ -1,14 +1,10 @@
 const express = require("express");
-const supabase = require("../db/supabaseClient");
+const { getEventConfig } = require("../utils/eventConfigCache");
 
 const router = express.Router();
 
 router.get("/event", async (req, res) => {
-  const { data: config, error } = await supabase
-    .from("event_config")
-    .select("started_at, duration_minutes, ended_at")
-    .eq("id", 1)
-    .single();
+  const { config, error } = await getEventConfig();
 
   if (error || !config) {
     return res.status(404).json({ error: "Event config not found" });

@@ -16,7 +16,12 @@ import { StateView } from '../components/StateView'
 import { ClueSkeleton } from '../components/Skeleton'
 import { useTeamState } from '../hooks/useTeamState'
 import { useOnline } from '../hooks/useOnline'
-import { getChapter, FRAGMENT_COUNT } from '../utils/story'
+import { FRAGMENT_COUNT } from '../content/fragments'
+import {
+  STATION_COUNT,
+  VERIFY_ATTEMPTS,
+  VERIFY_WINDOW_MINUTES,
+} from '../utils/rules'
 import { describeError, formatCountdown, retryAfterSeconds, RETRY } from '../utils/errorCopy'
 
 const FLOW_KEY = 'hunterstellar_v2'
@@ -166,7 +171,7 @@ export default function Dashboard() {
    * poll from swapping the view out from under someone mid-typing, and it
    * fires whenever `heldStage !== stage` while the input is dirty. But a wrong
    * code deliberately leaves the input dirty (retyping a code that just cost
-   * you fifteen minutes is indefensible) while the stage flips to `locked`.
+   * you the full lockout is indefensible) while the stage flips to `locked`.
    * Without this, that self-inflicted change looked exactly like a teammate's
    * and the screen claimed "a teammate moved the crew forward" on top of the
    * lockout the player had just earned themselves.
@@ -276,7 +281,7 @@ export default function Dashboard() {
         tone: 'blocking',
         label: `Attempts paused for ${formatCountdown(rateSecondsLeft)}`,
         detail:
-          'Your crew shares ten attempts per fifteen minutes. Entry reopens when this clears.',
+          `Your crew shares ${VERIFY_ATTEMPTS} attempts per ${VERIFY_WINDOW_MINUTES} minutes. Entry reopens when this clears.`,
       })
     }
 
@@ -334,8 +339,14 @@ export default function Dashboard() {
 
   // ---------------------------------------------------------------- render
 
-  const chapter = getChapter(progress)
-  const isTerminal = state?.is_terminal ?? chapter.kind === 'terminal'
+  /**
+   * Keyed on `progress`, deliberately not on `is_terminal` alone: the server
+   * only sends `is_terminal` on the awaiting_code payload, so a crew locked
+   * out AT the Null Void would fall back to a normal station heading at the
+   * one moment the fifth stop is most obviously real.
+   */
+  const atTerminal = progress >= STATION_COUNT
+  const isTerminal = state?.is_terminal ?? atTerminal
   const locked = stage === 'locked'
   const images = state?.clue_images || []
 
@@ -435,11 +446,7 @@ export default function Dashboard() {
   return (
     <Layout
       titleNode={
-        <StopIndicator
-          name={isTerminal ? 'The Null Void' : chapter.name}
-          progress={progress}
-          terminal={isTerminal}
-        />
+        <StopIndicator progress={progress} terminal={isTerminal} />
       }
       actions={
         <button
@@ -463,7 +470,11 @@ export default function Dashboard() {
         {body}
       </div>
 
-      <JourneyMapSheet open={mapOpen} onClose={() => setMapOpen(false)} progress={progress} />
+      <JourneyMapSheet
+        open={mapOpen}
+        onClose={() => setMapOpen(false)}
+        progress={progress}
+      />
       <ImageSheet open={imagesOpen} onClose={() => setImagesOpen(false)} images={images} />
     </Layout>
   )

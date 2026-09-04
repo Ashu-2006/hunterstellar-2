@@ -1,32 +1,42 @@
 @import "tailwindcss";
 
+/*
+ * Ben 10 palette: Omnitrix green on near-black, white type, Null Void violet.
+ *
+ * The green is the whole identity, so it is the only hue that means "this is
+ * a control" -- accent, focus, active nav, progress. Everything else is
+ * greyscale except three signals (violet / amber / red), which is what keeps
+ * the green reading as green instead of as one colour among six.
+ *
+ * Grounds are warm-neutral near-black rather than mid-grey: heavy grain needs
+ * headroom, and #262626 left none.
+ */
 @theme {
-  --color-bg: #262626;
-  --color-surface: #1C1C1C;
-  --color-surface-alt: #2B2B2B;
-  --color-border: #3A3A3A;
+  --color-bg: #0B0D0B;
+  --color-surface: #131614;
+  --color-surface-alt: #1E231F;
+  --color-border: #2C332D;
 
-  --color-text-primary: #f6f6f6;
-  --color-text-secondary: #d9d9d9;
-  --color-text-muted: #9c9c9c;
-  --color-text-inverse: #100f0d;
+  --color-text-primary: #F2F5F2;
+  --color-text-secondary: #C9D1CA;
+  --color-text-muted: #8A968C;
+  --color-text-inverse: #0B0D0B;
 
-  --color-accent: #38BDF8;
-  --color-accent-hover: #0EA5E9;
-  --color-accent-active: #0284C7;
-  --color-nav-active: #12304F;
-  --color-teal: #2DD4BF;
-  --color-teal-muted: #5EA9A2;
+  /* Omnitrix green. `accent` is a touch deeper than the dial itself so body
+     text on it clears AA; `teal` is the brighter dial green, for glyphs and
+     rules only -- never for text. */
+  --color-accent: #6FE04B;
+  --color-accent-hover: #8AF06A;
+  --color-accent-active: #57C238;
+  --color-nav-active: #17301A;
+  --color-teal: #9CFF57;
+  --color-teal-muted: #6B8F5C;
 
-  --color-rust: #FB8C3A;
-  --color-void-gold: #FFD6A0;
-  --color-green: #10B981;
-  /* Was #EF4444, which measures 4.02:1 on --color-bg and 3.76:1 on
-     --color-surface-alt. Error copy renders at 14px, i.e. normal text, so it
-     needs 4.5:1 and was failing WCAG AA everywhere it appeared. #F87171 gives
-     5.47:1 on bg and 6.16:1 on surface. */
-  --color-red: #F87171;
-  --color-amber: #F59E0B;
+  --color-rust: #6FE04B;
+  --color-void-gold: #C9A227;
+  --color-green: #6FE04B;
+  --color-red: #F0503C;
+  --color-amber: #F5A623;
 
   --font-sans: 'Roboto', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
@@ -36,9 +46,12 @@
 }
 
 @theme {
-  /* Referenced by AnnouncementBanner; previously undefined, so those classes
-     silently produced no colour. */
-  --color-indigo: #818CF8;
+  /* Null Void violet. Deliberately the scarcest colour in the app -- it marks
+     the terminal stop and nothing else, so seeing it means the rules changed.
+     Lifted from #8B5CF6, which measured 4.30:1 on --color-surface and 3.77:1
+     on --color-surface-alt: under AA for the 13-14px body copy it labels. This
+     reads 7.17:1 on bg and 5.87:1 on surface-alt. */
+  --color-indigo: #A78BFA;
 
   /*
    * MOTION TOKENS
@@ -48,7 +61,7 @@
    * so the values land on :root for var() and for lib/motion.js to mirror.
    *
    * Enter decelerates (arrival). Exit accelerates (departure). Standard eases
-   * both ends. If the product's feel ever changes, it changes here, once.
+   * both ends. If the product's feel changes, it changes here, once.
    */
   --ease-enter: cubic-bezier(0.2, 0, 0, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
@@ -56,27 +69,26 @@
 }
 
 /*
- * Durations. Kept as plain custom properties because Tailwind v4 has no
- * `duration-*` theme namespace to register them under.
+ * Durations. Plain custom properties because Tailwind v4 has no `duration-*`
+ * theme namespace to register them under.
  *
  * The three bands are perceptual, not stylistic: under 100ms the eye has not
  * landed, so motion can only acknowledge and never narrate. 150 to 300ms is
  * where a product's tempo is legible. Past 300ms a wait needs a skeleton or an
- * interrupt, which is why `expressive` is reserved for moments a player sees
+ * interrupt, which is why `expressive` is reserved for a moment a player sees
  * once or twice in the whole event.
  *
- * Mirrored in src/lib/motion.js. Change both together.
+ * Mirrored in src/lib/motion.js, which warns in dev if the two drift.
  */
 :root {
   --duration-instant: 120ms;
   --duration-base: 220ms;
   --duration-expressive: 640ms;
-
   --stagger-step: 50ms;
 }
 
 /* One noise texture, reused by every grained surface. Defining it once as a
-   custom property keeps .grain-frame, .card-noise and .display-grunge in sync
+   custom property keeps .film-grain, .card-noise and .display-grunge in sync
    and costs ~1KB total instead of a bitmap per surface. */
 :root {
   --noise-texture: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2Ij48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuOSIgbnVtT2N0YXZlcz0iNCIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjxmZUNvbG9yTWF0cml4IHR5cGU9Imx1bWluYW5jZVRvQWxwaGEiLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIi8+PC9zdmc+");
@@ -117,7 +129,7 @@
 .animate-pulse-soft { animation: pulseSoft 1.4s ease-in-out infinite; }
 
 /*
- * Semantic motion. Each class is one job, and each changes exactly one channel.
+ * Semantic motion. Each class is one job and each changes exactly one channel.
  *
  * The rule these encode: only enter, exit and reorder genuinely require
  * motion. Hover, focus and active states are carried by colour and weight, so
@@ -143,10 +155,8 @@
 .motion-scrim-out { animation: scrimOut var(--duration-base) var(--ease-standard) forwards; }
 
 /* Under 100ms is acknowledgment. This is the whole press feedback: one
-   channel, no scale plus colour plus shadow stacked on one event. */
-.motion-press {
-  transition: opacity var(--duration-instant) var(--ease-standard);
-}
+   channel, not scale plus colour plus shadow stacked on one event. */
+.motion-press { transition: opacity var(--duration-instant) var(--ease-standard); }
 .motion-press:active:not(:disabled) { opacity: 0.72; }
 
 /* Row-local disclosure. grid-template-rows animates without measuring, so an
@@ -159,22 +169,14 @@
 .motion-disclose[data-open='true'] { grid-template-rows: 1fr; }
 .motion-disclose > * { overflow: hidden; }
 
-/* Staggered arrival. The child sets --i; total sequence stays under 500ms,
-   which caps the useful list length at about ten items. */
-.motion-stagger-item {
-  opacity: 0;
-  animation: fadeIn var(--duration-base) var(--ease-enter) forwards;
-  animation-delay: calc(var(--i, 0) * var(--stagger-step));
-}
-
 /*
  * Reduced motion is a designed alternative, not the primary spec with the
  * animation deleted.
  *
- * Fades are kept: they carry enter and exit, and removing them would lose the
- * state change rather than soften it. Transforms, rotation and shake are
- * replaced, because those are the ones that trigger vestibular symptoms.
- * Durations collapse toward instant.
+ * Fades are kept: they carry enter and exit, and removing them loses the state
+ * change rather than softening it. Transforms, rotation and shake are the ones
+ * that trigger vestibular symptoms, so those are replaced. Durations collapse
+ * toward instant.
  */
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -184,13 +186,11 @@
     --stagger-step: 0ms;
   }
 
-  /* Rotation and displacement: removed outright. */
   .animate-spin-slow,
   .shake {
     animation: none;
   }
 
-  /* Translate-based reveals become fades in place. */
   .animate-slide-up,
   .motion-sheet-in {
     animation: fadeIn 1ms linear forwards;
@@ -199,14 +199,10 @@
     animation: scrimOut 1ms linear forwards;
   }
 
-  /* Kept, because they are opacity-only and they signal live state. */
   .animate-fadeIn,
-  .animate-pulse-soft,
-  .motion-stagger-item {
+  .animate-pulse-soft {
     animation-duration: 1ms;
-    animation-delay: 0ms;
   }
-  .motion-stagger-item { opacity: 1; }
 
   .motion-disclose { transition-duration: 1ms; }
 }
@@ -221,16 +217,15 @@
   display: inline-block;
   /*
    * The ::after noise overlay is absolutely positioned to `inset: 0`, so it
-   * paints the element's whole box. `display: inline-block` was meant to keep
-   * that box hugging the glyphs, but every heading using this class sits in a
-   * flex column, where a flex item is blockified and then stretched to the
-   * cross size. The box became full-width and the overlay rendered as a
-   * visible rectangle trailing off to the right of the text.
+   * paints the element's whole box. `inline-block` was meant to keep that box
+   * hugging the glyphs, but every heading using this class is a flex item,
+   * which gets blockified and then stretched to the cross size. The box became
+   * full-width and the overlay rendered as a rectangle trailing off past the
+   * text.
    *
-   * `fit-content` fixes it in both flex and block contexts, and it is enough
-   * on its own: flex `stretch` only applies when the cross size is `auto`, so
-   * an explicit width opts out. Deliberately NOT `align-self: start`, which
-   * would left-align the headings that Lockout and Finished centre.
+   * `fit-content` is enough on its own: flex `stretch` only applies when the
+   * cross size is `auto`, so an explicit width opts out. Deliberately NOT
+   * `align-self: start`, which would left-align the centred headings.
    */
   width: fit-content;
   max-width: 100%;
@@ -279,7 +274,7 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.38;
+  opacity: 0.55;
   background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2Ij48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuOSIgbnVtT2N0YXZlcz0iNCIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjxmZUNvbG9yTWF0cml4IHR5cGU9Imx1bWluYW5jZVRvQWxwaGEiLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIi8+PC9zdmc+");
   background-repeat: repeat;
   background-size: 256px 256px;

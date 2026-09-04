@@ -7,8 +7,19 @@ const { requireEventActive } = require("../middleware/eventStatus");
 const { verifyLimiter } = require("../middleware/rateLimit");
 const { getTeamStateForUser, invalidateTeamStateCache, buildRandomRoute } = require("../utils/teamState");
 const { sendWelcomeEmail } = require("../utils/email");
+const { isCurrentSession, SESSION_REPLACED } = require("../utils/session");
 
 const router = express.Router();
+
+/**
+ * How long a wrong station code seals a team out.
+ *
+ * Named because the number is also spoken in the UI ("a wrong code locks your
+ * team out for N minutes") and the warning has to stay true. Distinct from the
+ * verifyLimiter window in middleware/rateLimit.js, which is a separate
+ * anti-script control that happens to also be measured in minutes.
+ */
+const LOCKOUT_MINUTES = 7;
 
 router.post("/team/register", async (req, res) => {
   if (req.headers["x-webhook-secret"] !== process.env.WEBHOOK_SECRET) {
@@ -84,6 +95,11 @@ router.post(
     if (!team) {
       return res.status(404).json({ message: "team doesn't exist" });
     }
+    // Checked before anything is read or mutated: a superseded device must not
+    // be able to burn an attempt or move the team.
+    if (!isCurrentSession(team, req.sessionId)) {
+      return res.status(401).json(SESSION_REPLACED);
+    }
     // Past the end of the route means the hunt is over, not that the team is
     // missing -- a finished team polling this endpoint gets a clean answer.
     if (!team.route?.[team.progress]) {
@@ -126,9 +142,21 @@ router.post(
       const isLastStop = currentStop.question_id === null;
       const newProgress = isLastStop ? team.progress + 1 : team.progress;
       const newStage = isLastStop ? "awaiting_code" : "awaiting_puzzle";
-      const newStatus = isLastStop ? "finished" : team.status;
+      // Reaching here means the lock guard above let us through, so the team
+      // is definitionally not locked -- write that, rather than carrying
+      // `team.status` forward. Carrying it forward left teams sitting at
+      // status:"locked" after they had already moved on, because the expiry
+      // is only cleared on a state READ and a team can submit before one
+      // happens. Harmless to the player (the read self-heals) but it shows on
+      // the public leaderboard as a penalty they are not serving.
+      const newStatus = isLastStop ? "finished" : "active";
 
-      const updatePayload = { stage: newStage, progress: newProgress, status: newStatus };
+      const updatePayload = {
+        stage: newStage,
+        progress: newProgress,
+        status: newStatus,
+        lock_until: null,
+      };
       const { data: updated, error: updateError } = await supabase
         .from("teams")
         .update(updatePayload)
@@ -150,7 +178,7 @@ router.post(
       return res.json({ success: true, state });
     }
 
-    const lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+    const lockUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
     await supabase
       .from("teams")
       .update({
@@ -184,6 +212,9 @@ router.post(
     const { data: team } = await teamModel.getById(req.userId);
     if (!team) {
       return res.status(404).json({ message: "team doesn't exist" });
+    }
+    if (!isCurrentSession(team, req.sessionId)) {
+      return res.status(401).json(SESSION_REPLACED);
     }
     // Past the end of the route means the hunt is over, not that the team is
     // missing -- a finished team polling this endpoint gets a clean answer.
@@ -223,12 +254,15 @@ router.post(
       question.question_answer.trim().toLowerCase()
     ) {
       const newProgress = team.progress + 1;
-      const newStatus = newProgress === 5 ? "finished" : team.status;
+      // Same reasoning as verify-code: a correct answer cannot happen while
+      // locked, so never carry a stale "locked" forward.
+      const newStatus = newProgress === 5 ? "finished" : "active";
 
       const updatePayload = {
         stage: "awaiting_code",
         progress: newProgress,
         status: newStatus,
+        lock_until: null,
         last_correct_at: new Date().toISOString(),
       };
       const { data: updated, error: updateError } = await supabase

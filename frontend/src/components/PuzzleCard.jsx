@@ -1,10 +1,11 @@
 import { useState } from 'react'
+import { RemoteImage } from './RemoteImage'
 
 /**
  * The station's challenge, and the one thing to do about it.
  *
  * Same shape as ClueCard so the two stages of a stop read as one place with
- * two states, rather than two different screens. The display numeral changes
+ * two states rather than two different screens. The display heading changes
  * word and colour; everything below it holds position, so a player's thumb
  * lands in the same spot both times.
  */
@@ -13,6 +14,7 @@ const NUMERALS = ['I', 'II', 'III', 'IV', 'V']
 
 export function PuzzleCard({
   question,
+  images = [],
   progress = 0,
   onSubmit,
   loading,
@@ -40,14 +42,14 @@ export function PuzzleCard({
   }
 
   return (
-    <div className="w-full flex flex-col gap-7 px-6 pt-5 pb-8">
+    <div className="flex w-full flex-col gap-7 px-5 pb-10 pt-5 sm:px-6">
       <div className="flex flex-col gap-5">
-        <h2 className="display-grunge text-[44px] leading-none text-teal">
+        <h2 className="display-grunge text-[clamp(2rem,9vw,2.75rem)] leading-none text-teal">
           Challenge {NUMERALS[stop]}
         </h2>
 
         {question ? (
-          <p className="text-text-secondary text-[17px] leading-relaxed whitespace-pre-line">
+          <p className="whitespace-pre-line text-[17px] leading-relaxed text-text-secondary">
             {question}
           </p>
         ) : (
@@ -56,15 +58,27 @@ export function PuzzleCard({
           </p>
         )}
 
-        {/* Wrong codes lock a team for fifteen minutes; wrong answers do not.
-            Teams conflate the two and stop guessing, so say it before they
-            submit rather than after. */}
+        {images.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {images.map((src, i) => (
+              <RemoteImage
+                key={src || i}
+                src={src}
+                alt={`Question image ${i + 1}`}
+                fallbackNote="Image did not load. The written question is complete on its own."
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Wrong codes lock a crew; wrong answers do not. Crews conflate the
+            two and stop guessing, so say it before they submit, not after. */}
         <p className="text-[12px] text-text-muted">
           Wrong answers do not lock you. Take your best guess.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4">
         <input
           value={answer}
           onChange={(e) => update(e.target.value)}
@@ -72,27 +86,22 @@ export function PuzzleCard({
           autoComplete="off"
           placeholder="Enter your answer here"
           aria-label="Your answer"
-          className="w-full h-[60px] bg-surface border border-surface-alt rounded-md px-5
-            text-text-primary text-base placeholder:text-text-muted outline-none
-            focus:border-accent disabled:opacity-50"
+          className="h-[60px] w-full rounded-md border border-surface-alt bg-surface px-5 text-base text-text-primary outline-none placeholder:text-text-muted focus:border-accent disabled:opacity-50"
         />
 
         {error && (
-          <p role="alert" className="text-[13px] text-red text-center shake">
+          <p role="alert" className="shake text-center text-[13px] text-red">
             {error}
           </p>
         )}
         {disabled && disabledHint && (
-          <p className="text-[12px] text-text-muted text-center">{disabledHint}</p>
+          <p className="text-center text-[12px] text-text-muted">{disabledHint}</p>
         )}
 
         <button
           type="submit"
           disabled={loading || disabled || !answer.trim()}
-          className="w-full h-[52px] bg-[#f6f6f6] text-text-inverse rounded-md font-display
-            text-lg disabled:opacity-60 motion-press cursor-pointer
-            focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent
-            focus-visible:outline-offset-2"
+          className="motion-press h-[52px] w-full cursor-pointer rounded-md bg-accent font-display text-lg text-text-inverse disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           {loading ? 'Verifying...' : 'Submit Answer'}
         </button>
