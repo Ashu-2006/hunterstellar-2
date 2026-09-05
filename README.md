@@ -24,7 +24,7 @@ An npm workspace with two deployable apps.
 
 ## Running it
 
-Node 20 or newer.
+Node 22 or newer.
 
 ```bash
 npm install                  # installs both workspaces
