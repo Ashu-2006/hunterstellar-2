@@ -357,3 +357,12 @@
   background-repeat: repeat;
   background-size: 256px 256px;
 }
+
+/* Painted on <html>, not on a React wrapper. The wrapper does not exist yet
+   while a lazy route chunk is loading, and that gap rendered as a full white
+   frame between login and the first clue on an otherwise dark app.
+   color-scheme keeps native scrollbars and form controls dark as well. */
+html {
+  background-color: var(--color-bg);
+  color-scheme: dark;
+}
