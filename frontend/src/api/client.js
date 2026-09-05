@@ -2,8 +2,23 @@ import axios from 'axios'
 
 export const SESSION_NOTICE_KEY = 'odyssey_session_notice'
 
+/**
+ * Where the API lives.
+ *
+ * The fallback is RELATIVE on purpose. It used to be the absolute string
+ * 'http://localhost:5173/api', which Vite baked verbatim into the production
+ * bundle -- so every deployed player's browser tried to call a server on their
+ * own laptop, over http, from an https page. Two failures at once: wrong host,
+ * and blocked as mixed content.
+ *
+ * '/api' works in development through the Vite proxy (see vite.config.js) at
+ * whatever port Vite happens to pick, and in production it resolves against
+ * the page's own origin. When the API is on a different host -- as it is now,
+ * on Railway -- VITE_API_URL must be set at BUILD time. It is inlined into the
+ * bundle, not read at runtime, so changing it means rebuilding.
+ */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
 })
 
 api.interceptors.request.use((config) => {
@@ -11,7 +26,7 @@ api.interceptors.request.use((config) => {
     const token = localStorage.getItem('odyssey_token')
     if (token) config.headers.Authorization = `Bearer ${token}`
   } catch {
-    /* storage unavailable — send the request unauthenticated and let the
+    /* storage unavailable, so send the request unauthenticated and let the
        server decide */
   }
   return config
@@ -26,13 +41,21 @@ api.interceptors.response.use(
     // ("not started" / "has ended") is a normal game state, not an auth
     // failure -- logging someone out mid-hunt for standing at a station too
     // early would be indefensible.
-    if (status === 401) {
+    // A 401 from /login itself is a wrong password, not a dead session. There
+    // is nothing to log out of, and writing "expired" here made the login
+    // screen tell a crew their session expired when they had only mistyped.
+    const isLoginRequest = /(^|\/)login$/.test(err.config?.url || '')
+
+    if (status === 401 && !isLoginRequest) {
       try {
         localStorage.removeItem('odyssey_token')
         localStorage.removeItem('odyssey_user')
         // Tell the login screen why it is being shown, instead of bouncing
-        // the player there with no explanation.
-        sessionStorage.setItem(SESSION_NOTICE_KEY, 'expired')
+        // the player there with no explanation. Being evicted by a teammate's
+        // login is a very different thing from a session timing out, and a
+        // team that reads the wrong one will waste minutes chasing it.
+        const replaced = err.response?.data?.reason === 'session_replaced'
+        sessionStorage.setItem(SESSION_NOTICE_KEY, replaced ? 'replaced' : 'expired')
       } catch {
         /* ignore */
       }

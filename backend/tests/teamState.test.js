@@ -1,6 +1,8 @@
 const { signToken } = require("./helpers/tokens");
 
-jest.mock("../db/supabaseClient", () => require("./helpers/mockSupabase").createMockSupabase());
+jest.mock("../db/supabaseClient", () =>
+  require("./helpers/mockSupabase").createMockSupabase(),
+);
 jest.mock("../utils/email", () => ({ sendWelcomeEmail: jest.fn() }));
 
 const mockSupabase = require("../db/supabaseClient");
@@ -33,36 +35,41 @@ describe("team state contract (RPC path vs JS fallback)", () => {
     question_statement: "Q1",
     question_answer: "ANS1",
     domain: "test",
+    que_img: ["https://cdn.test/question-1.jpg"],
   };
 
   function seed(overrides = {}) {
     mockSupabase.__testing.reset();
-    mockSupabase.__testing.setTable("teams", [{
-      id: "team-a",
-      team_name: "Team Alpha",
-      team_leader: "Alice",
-      members: ["Alice"],
-      password: "$2a$10$hashed",
-      route: [{ island_id: "i1", question_id: "q1" }],
-      email: "a@test.com",
-      progress: 0,
-      stage: "awaiting_code",
-      status: "active",
-      wrong_attempts: 0,
-      lock_until: null,
-      notice: null,
-      last_correct_at: null,
-      ...overrides,
-    }]);
+    mockSupabase.__testing.setTable("teams", [
+      {
+        id: "team-a",
+        team_name: "Team Alpha",
+        team_leader: "Alice",
+        members: ["Alice"],
+        password: "$2a$10$hashed",
+        route: [{ island_id: "i1", question_id: "q1" }],
+        email: "a@test.com",
+        progress: 0,
+        stage: "awaiting_code",
+        status: "active",
+        wrong_attempts: 0,
+        lock_until: null,
+        notice: null,
+        last_correct_at: null,
+        ...overrides,
+      },
+    ]);
     mockSupabase.__testing.setTable("islands", [ISLAND]);
     mockSupabase.__testing.setTable("questions", [QUESTION]);
     mockSupabase.__testing.setTable("announcements", []);
-    mockSupabase.__testing.setTable("event_config", [{
-      id: 1,
-      started_at: new Date(Date.now() - 1000).toISOString(),
-      duration_minutes: 120,
-      ended_at: null,
-    }]);
+    mockSupabase.__testing.setTable("event_config", [
+      {
+        id: 1,
+        started_at: new Date(Date.now() - 1000).toISOString(),
+        duration_minutes: 120,
+        ended_at: null,
+      },
+    ]);
     invalidateAllTeamStateCache();
   }
 
@@ -167,6 +174,41 @@ describe("team state contract (RPC path vs JS fallback)", () => {
       expect(state.stage).toBe("awaiting_puzzle");
       expect(state.question).toBe("Q1");
       expect(state.clue_images).toEqual([]);
+    });
+
+    test("question images reach the client on the fallback path", async () => {
+      seed({ stage: "awaiting_puzzle" });
+
+      const state = await getTeamStateForUser("team-a");
+      expect(state.stage).toBe("awaiting_puzzle");
+      expect(state.question_images).toEqual(QUESTION.que_img);
+    });
+
+    test("question images are hydrated when the RPC omits them", async () => {
+      // The RPC body lives in the database and does not know about que_img
+      // yet. Without hydration this is exactly how the column ships nothing
+      // while every other test stays green.
+      seed({ stage: "awaiting_puzzle" });
+      mockSupabase.__testing.setRpc("get_team_state", () => ({
+        data: {
+          team: { id: "team-a", team_name: "Team Alpha", progress: 0 },
+          stage: "awaiting_puzzle",
+          question: "Q1",
+        },
+        error: null,
+      }));
+
+      const state = await getTeamStateForUser("team-a");
+      expect(state.question_images).toEqual(QUESTION.que_img);
+    });
+
+    test("a question with no image yields an empty array, never null", async () => {
+      // Most questions have no art; the client maps over this unconditionally.
+      seed({ stage: "awaiting_puzzle" });
+      mockSupabase.__testing.setTable("questions", [{ ...QUESTION, que_img: null }]);
+
+      const state = await getTeamStateForUser("team-a");
+      expect(state.question_images).toEqual([]);
     });
 
     test("an RPC error falls through to the fallback rather than failing", async () => {

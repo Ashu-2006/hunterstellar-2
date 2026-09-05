@@ -5,17 +5,32 @@ const teamModel = require("../db/teamModel");
 const { requireAuth } = require("../middleware/auth");
 const { requireEventActive } = require("../middleware/eventStatus");
 const { verifyLimiter } = require("../middleware/rateLimit");
-const { getTeamStateForUser, invalidateTeamStateCache, buildRandomRoute } = require("../utils/teamState");
+const {
+  getTeamStateForUser,
+  invalidateTeamStateCache,
+  buildRandomRoute,
+} = require("../utils/teamState");
 const { sendWelcomeEmail } = require("../utils/email");
+const { isCurrentSession, SESSION_REPLACED } = require("../utils/session");
 
 const router = express.Router();
+
+/**
+ * How long a wrong station code seals a team out.
+ *
+ * Named because the number is also spoken in the UI ("a wrong code locks your
+ * team out for N minutes") and the warning has to stay true. Distinct from the
+ * verifyLimiter window in middleware/rateLimit.js, which is a separate
+ * anti-script control that happens to also be measured in minutes.
+ */
+const LOCKOUT_MINUTES = 7;
 
 router.post("/team/register", async (req, res) => {
   if (req.headers["x-webhook-secret"] !== process.env.WEBHOOK_SECRET) {
     return res.sendStatus(403);
   }
 
-  const { team_name : requested_name, team_leader, members, password, email } = req.body;
+  const { team_name: requested_name, team_leader, members, password, email } = req.body;
   let team_name = requested_name;
   if (!team_name || !password || !email) {
     return res.status(400).json({
@@ -32,14 +47,12 @@ router.post("/team/register", async (req, res) => {
     return res.status(500).json({ error: "Could not build team route" });
   }
   const existing = await teamModel.getByTeamName(team_name);
-  if (existing.error)
-    return res.status(500).json({ error: existing.error.message });
+  if (existing.error) return res.status(500).json({ error: existing.error.message });
   if (existing.data) {
     for (let i = 0; i < 5; i++) {
-       const candidate = `${team_name}_${Math.floor(Math.random() * 9000 + 1000)}`;
+      const candidate = `${team_name}_${Math.floor(Math.random() * 9000 + 1000)}`;
       const check = await teamModel.getByTeamName(candidate);
-      if (check.error)
-        return res.status(500).json({ error: check.error.message });
+      if (check.error) return res.status(500).json({ error: check.error.message });
       if (!check.data) {
         team_name = candidate;
         break;
@@ -84,6 +97,11 @@ router.post(
     if (!team) {
       return res.status(404).json({ message: "team doesn't exist" });
     }
+    // Checked before anything is read or mutated: a superseded device must not
+    // be able to burn an attempt or move the team.
+    if (!isCurrentSession(team, req.sessionId)) {
+      return res.status(401).json(SESSION_REPLACED);
+    }
     // Past the end of the route means the hunt is over, not that the team is
     // missing -- a finished team polling this endpoint gets a clean answer.
     if (!team.route?.[team.progress]) {
@@ -119,16 +137,25 @@ router.post(
       return res.status(500).json({ error: "Could not fetch island" });
     }
 
-    if (
-      enteredCode.trim().toLowerCase() ===
-      island.correct_code.trim().toLowerCase()
-    ) {
+    if (enteredCode.trim().toLowerCase() === island.correct_code.trim().toLowerCase()) {
       const isLastStop = currentStop.question_id === null;
       const newProgress = isLastStop ? team.progress + 1 : team.progress;
       const newStage = isLastStop ? "awaiting_code" : "awaiting_puzzle";
-      const newStatus = isLastStop ? "finished" : team.status;
+      // Reaching here means the lock guard above let us through, so the team
+      // is definitionally not locked -- write that, rather than carrying
+      // `team.status` forward. Carrying it forward left teams sitting at
+      // status:"locked" after they had already moved on, because the expiry
+      // is only cleared on a state READ and a team can submit before one
+      // happens. Harmless to the player (the read self-heals) but it shows on
+      // the public leaderboard as a penalty they are not serving.
+      const newStatus = isLastStop ? "finished" : "active";
 
-      const updatePayload = { stage: newStage, progress: newProgress, status: newStatus };
+      const updatePayload = {
+        stage: newStage,
+        progress: newProgress,
+        status: newStatus,
+        lock_until: null,
+      };
       const { data: updated, error: updateError } = await supabase
         .from("teams")
         .update(updatePayload)
@@ -150,7 +177,7 @@ router.post(
       return res.json({ success: true, state });
     }
 
-    const lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+    const lockUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
     await supabase
       .from("teams")
       .update({
@@ -161,10 +188,15 @@ router.post(
       .eq("id", teamId);
     invalidateTeamStateCache(teamId);
 
+    // Every failure reason carries `state`, so the client adopts the fresh
+    // locked state through the same path as a success and never has to
+    // reconcile a wrong code with a stale poll.
+    const state = await getTeamStateForUser(teamId);
     return res.json({
       success: false,
       reason: "wrong_code",
       lock_until: lockUntil,
+      state,
     });
   },
 );
@@ -184,6 +216,9 @@ router.post(
     const { data: team } = await teamModel.getById(req.userId);
     if (!team) {
       return res.status(404).json({ message: "team doesn't exist" });
+    }
+    if (!isCurrentSession(team, req.sessionId)) {
+      return res.status(401).json(SESSION_REPLACED);
     }
     // Past the end of the route means the hunt is over, not that the team is
     // missing -- a finished team polling this endpoint gets a clean answer.
@@ -219,16 +254,18 @@ router.post(
     }
 
     if (
-      enteredAns.trim().toLowerCase() ===
-      question.question_answer.trim().toLowerCase()
+      enteredAns.trim().toLowerCase() === question.question_answer.trim().toLowerCase()
     ) {
       const newProgress = team.progress + 1;
-      const newStatus = newProgress === 5 ? "finished" : team.status;
+      // Same reasoning as verify-code: a correct answer cannot happen while
+      // locked, so never carry a stale "locked" forward.
+      const newStatus = newProgress === 5 ? "finished" : "active";
 
       const updatePayload = {
         stage: "awaiting_code",
         progress: newProgress,
         status: newStatus,
+        lock_until: null,
         last_correct_at: new Date().toISOString(),
       };
       const { data: updated, error: updateError } = await supabase

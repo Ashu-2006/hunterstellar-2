@@ -4,7 +4,12 @@ import { useAuth } from '../context/AuthContext'
 import { Wordmark } from '../components/brand/Wordmark'
 import { SESSION_NOTICE_KEY } from '../api/client'
 import { useOnline } from '../hooks/useOnline'
-import { describeError, formatCountdown, retryAfterSeconds, RETRY } from '../utils/errorCopy'
+import {
+  describeError,
+  formatCountdown,
+  retryAfterSeconds,
+  RETRY,
+} from '../lib/errorCopy'
 
 export default function Login() {
   const { login } = useAuth()
@@ -19,8 +24,12 @@ export default function Login() {
   // state on the very first commit just to show a message we already know.
   const [notice] = useState(() => {
     try {
-      if (sessionStorage.getItem(SESSION_NOTICE_KEY) === 'expired') {
-        sessionStorage.removeItem(SESSION_NOTICE_KEY)
+      const reason = sessionStorage.getItem(SESSION_NOTICE_KEY)
+      if (reason) sessionStorage.removeItem(SESSION_NOTICE_KEY)
+      if (reason === 'replaced') {
+        return 'Your team signed in on another device. Only one device can play at a time, log in again to take over.'
+      }
+      if (reason === 'expired') {
         return 'Your session expired. Log in again to pick up where you left off.'
       }
     } catch {
@@ -37,7 +46,9 @@ export default function Login() {
     return () => clearInterval(t)
   }, [blockedUntil])
 
-  const secondsLeft = blockedUntil ? Math.max(0, Math.round((blockedUntil - now) / 1000)) : 0
+  const secondsLeft = blockedUntil
+    ? Math.max(0, Math.round((blockedUntil - now) / 1000))
+    : 0
 
   const canSubmit =
     teamName.trim() && password.trim() && !loading && online && secondsLeft === 0
@@ -50,7 +61,11 @@ export default function Login() {
     setLoading(true)
     try {
       await login(teamName.trim(), password)
-      navigate('/dashboard')
+      // Straight to the clue. The prologue is reachable any time from the
+      // Fragments tab and never gates play: a crew signing in at the venue is
+      // usually already standing at a station, and making them read first is
+      // the one thing this app must not do.
+      navigate('/journey', { replace: true })
     } catch (err) {
       const described = describeError(err, 'login')
       setError(described)
@@ -73,9 +88,20 @@ export default function Login() {
           <div className="flex flex-col items-center gap-16 w-full max-w-sm">
             <Wordmark width={240} />
 
-            <form onSubmit={handleSubmit} className="w-full flex flex-col gap-7" noValidate>
+            <form
+              onSubmit={handleSubmit}
+              className="w-full flex flex-col gap-7"
+              noValidate
+            >
+              {/* Wording is copied from the registration form, deliberately.
+                  A team under pressure is reading their confirmation email in
+                  one hand and this screen in the other; three different names
+                  for the same two fields is how a crew decides the app is
+                  broken. The form's labels cannot change -- they are live and
+                  the Apps Script matches on them -- so everything else moves
+                  to match the form. */}
               <p className="text-text-primary text-center text-lg leading-snug">
-                Enter your Crew Identifier
+                Enter your shuttlecraft credentials
               </p>
 
               {notice && (
@@ -93,8 +119,8 @@ export default function Login() {
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck="false"
-                  placeholder="Crew Name"
-                  aria-label="Crew name"
+                  placeholder="Shuttlecraft Callsign"
+                  aria-label="Shuttlecraft callsign"
                   className="w-full h-[60px] bg-surface border border-surface-alt rounded-md px-5 text-text-primary text-base placeholder:text-text-muted outline-none focus:border-accent disabled:opacity-60"
                 />
                 <input
@@ -102,8 +128,8 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
-                  placeholder="Access Code"
-                  aria-label="Access code"
+                  placeholder="Rust Bucket Access Code"
+                  aria-label="Rust Bucket access code"
                   className="w-full h-[60px] bg-surface border border-surface-alt rounded-md px-5 text-text-primary text-base placeholder:text-text-muted outline-none focus:border-accent disabled:opacity-60"
                 />
               </div>
@@ -129,7 +155,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="w-full h-[52px] bg-[#f6f6f6] text-text-inverse rounded-md font-display text-lg disabled:opacity-60"
+                className="motion-press h-[52px] w-full cursor-pointer rounded-md bg-accent font-display text-lg text-text-inverse disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {loading ? 'Decrypting...' : 'Join Team'}
               </button>

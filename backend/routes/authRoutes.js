@@ -1,13 +1,14 @@
 const express = require("express");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const teamModel = require("../db/teamModel");
 const { getTeamStateForUser } = require("../utils/teamState");
-const { loginLimiter } = require("../middleware/rateLimit");
+const { loginLimiter, loginIpLimiter } = require("../middleware/rateLimit");
 
 const router = express.Router();
 
-router.post("/login", loginLimiter, async (req, res) => {
+router.post("/login", loginIpLimiter, loginLimiter, async (req, res) => {
   const { team_name, password } = req.body;
 
   if (!team_name || !password) {
@@ -24,7 +25,19 @@ router.post("/login", loginLimiter, async (req, res) => {
   const state = await getTeamStateForUser(data.id);
   if (state.error) return res.status(state.status).json({ error: state.message });
 
-  const token = jwt.sign({ userId: data.id }, process.env.JWT_SECRET, {
+  // One active session per team: this login supersedes whatever device was
+  // signed in before. Written BEFORE the token is issued -- if the update
+  // fails we would rather 500 than hand out a token that gets refused on the
+  // team's first submit, halfway across the event.
+  const sid = crypto.randomUUID();
+  const { error: sessionError } = await teamModel.update(data.id, {
+    session_token: sid,
+  });
+  if (sessionError) {
+    return res.status(500).json({ error: "Could not start session" });
+  }
+
+  const token = jwt.sign({ userId: data.id, sid }, process.env.JWT_SECRET, {
     expiresIn: "3h",
   });
 

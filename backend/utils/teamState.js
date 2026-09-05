@@ -14,13 +14,23 @@ const STATE_CACHE = new Map();
 // Per-process only. On a multi-instance deploy two teammates can briefly see
 // different stages; the mitigation is client-side -- the verify endpoints
 // return the fresh state, so the client trusts a POST response over a poll.
-const CACHE_TTL_MS = 1000;
+const CACHE_TTL_MS = 2000;
 
 // Set to "true" once the get_team_state RPC itself returns clue_images and
 // is_terminal (migration 003), which removes the hydration round trip below.
 // Defaulting to hydrating makes the deploy order-independent: the app is
 // correct whether or not the DB function has been updated yet.
 const HYDRATE_RPC_IMAGES = process.env.RPC_HAS_IMAGES !== "true";
+
+/**
+ * Whether the RPC payload already carries the image arrays. Migration 003
+ * returns them (empty or not) on every clue and puzzle state, so once it is
+ * deployed the hydration round trips stop on their own; the flag above only
+ * matters for a function that predates 003 and omits the keys entirely.
+ */
+function rpcReturnedImages(raw) {
+  return Array.isArray(raw?.clue_images) || Array.isArray(raw?.question_images);
+}
 
 function invalidateTeamStateCache(userId) {
   if (userId) STATE_CACHE.delete(String(userId));
@@ -40,6 +50,9 @@ function normalizeState(state) {
   return {
     ...state,
     clue_images: Array.isArray(state.clue_images) ? state.clue_images : [],
+    // Exposed as `question_images` to match `clue_images`; the column itself
+    // is `questions.que_img`.
+    question_images: Array.isArray(state.question_images) ? state.question_images : [],
     is_terminal: state.is_terminal ?? null,
   };
 }
@@ -58,19 +71,43 @@ function cacheState(cacheKey, state) {
 }
 
 /**
- * The RPC strips `route`, so it cannot tell us which island the team is on.
- * Re-reads the team to find the current stop, then fetches that island's art.
- * Only runs on the clue screen, and only until migration 003 lands.
+ * The RPC strips `route`, so it cannot tell us which island or question the
+ * team is on. Re-reads the team to find the current stop, then fetches that
+ * stop's art -- the island's `clue_images` on the clue screen, the question's
+ * `que_img` on the puzzle screen.
+ *
+ * Only runs until the DB function returns these itself (RPC_HAS_IMAGES=true).
  */
-async function hydrateClueImages(state, userId) {
-  if (state.stage !== "awaiting_code") return state;
-  if (state.clue_images && state.clue_images.length > 0) return state;
+async function hydrateStopImages(state, userId) {
+  const isClue = state.stage === "awaiting_code";
+  const isPuzzle = state.stage === "awaiting_puzzle";
+  if (!isClue && !isPuzzle) return state;
+
+  // Already populated by the RPC -- nothing to fetch.
+  if (isClue && state.clue_images?.length > 0) return state;
+  if (isPuzzle && state.question_images?.length > 0) return state;
 
   try {
     const { data: team } = await teamModel.getById(userId);
     const stop = team?.route?.[team.progress];
-    if (!stop?.island_id) return state;
+    if (!stop) return state;
 
+    if (isPuzzle) {
+      if (!stop.question_id) return state;
+      const { data: question } = await supabase
+        .from("questions")
+        .select("que_img")
+        .eq("id", stop.question_id)
+        .single();
+      if (!question) return state;
+
+      return {
+        ...state,
+        question_images: Array.isArray(question.que_img) ? question.que_img : [],
+      };
+    }
+
+    if (!stop.island_id) return state;
     const { data: island } = await supabase
       .from("islands")
       .select("clue_images, is_terminal")
@@ -84,7 +121,7 @@ async function hydrateClueImages(state, userId) {
       is_terminal: island.is_terminal ?? state.is_terminal ?? null,
     };
   } catch {
-    // Art is decoration -- never fail the clue screen over it.
+    // Art is decoration -- never fail the clue or puzzle screen over it.
     return state;
   }
 }
@@ -109,34 +146,42 @@ async function getTeamStateForUser(userId) {
 
       if (data && !data.error) {
         // Handle stale lock: if RPC still says locked but lock expired, fix row and retry once
-        if (data.stage === "locked" && data.lock_until && new Date(data.lock_until) <= new Date()) {
-
-          await supabase.from("teams").update({ status: "active", lock_until: null }).eq("id", userId);
+        if (
+          data.stage === "locked" &&
+          (!data.lock_until || new Date(data.lock_until) <= new Date())
+        ) {
+          await supabase
+            .from("teams")
+            .update({ status: "active", lock_until: null })
+            .eq("id", userId);
           STATE_CACHE.delete(cacheKey);
 
           // One retry via RPC (avoid infinite loop)
           const retry = await supabase.rpc("get_team_state", { p_user_id: userId });
           if (!retry.error && retry.data) {
-            let r = normalizeState(
-              typeof retry.data === "string" ? JSON.parse(retry.data) : retry.data,
-            );
-            if (HYDRATE_RPC_IMAGES) r = await hydrateClueImages(r, userId);
+            const retryRaw =
+              typeof retry.data === "string" ? JSON.parse(retry.data) : retry.data;
+            let r = normalizeState(retryRaw);
+            if (HYDRATE_RPC_IMAGES && !rpcReturnedImages(retryRaw)) {
+              r = await hydrateStopImages(r, userId);
+            }
             return cacheState(cacheKey, r);
           }
-
         }
         // Handle team not found via RPC returning null
         if (data.team == null && data.stage == null) {
           // Fall through to sequential fallback which returns 404
         } else {
           let state = normalizeState(data);
-          if (HYDRATE_RPC_IMAGES) state = await hydrateClueImages(state, userId);
+          if (HYDRATE_RPC_IMAGES && !rpcReturnedImages(data)) {
+            state = await hydrateStopImages(state, userId);
+          }
           return cacheState(cacheKey, state);
         }
       }
     }
   } catch (_) {
-    // RPC not deployed yet — fall through to sequential path
+    // RPC not deployed yet, fall through to sequential path
   }
 
   // --- Sequential fallback (keeps behavior before RPC was deployed) ---
@@ -154,7 +199,8 @@ async function getTeamStateForUser(userId) {
     .maybeSingle();
   const announcement = latestAnnouncement?.message || null;
 
-  const { password, route, ...safeTeam } = team;
+  // session_token stays server-side: it is what a superseded device lacks.
+  const { password, route, session_token, ...safeTeam } = team;
   const currentStop = team.route?.[team.progress];
   const notice = team.notice || null;
 
@@ -172,7 +218,7 @@ async function getTeamStateForUser(userId) {
   }
 
   let status = team.status;
- if (
+  if (
     status === "locked" &&
     (!team.lock_until || new Date(team.lock_until) <= new Date())
   ) {
@@ -223,7 +269,7 @@ async function getTeamStateForUser(userId) {
   if (team.stage === "awaiting_puzzle") {
     const { data: question } = await supabase
       .from("questions")
-      .select("question_statement")
+      .select("question_statement, que_img")
       .eq("id", currentStop.question_id)
       .single();
 
@@ -231,6 +277,9 @@ async function getTeamStateForUser(userId) {
       team: safeTeam,
       stage: "awaiting_puzzle",
       question: question?.question_statement,
+      // Optional artwork for the puzzle. Named to match `clue_images`; the
+      // column is `que_img`. Most questions have none, so this is usually [].
+      question_images: question?.que_img,
       notice,
       announcement,
     };
@@ -243,9 +292,7 @@ async function getTeamStateForUser(userId) {
 }
 
 async function buildRandomRoute() {
-  const { data: allIslands } = await supabase
-    .from("islands")
-    .select("*");
+  const { data: allIslands } = await supabase.from("islands").select("*");
 
   const groups = {};
   for (const island of allIslands) {
@@ -254,13 +301,11 @@ async function buildRandomRoute() {
     groups[o].push(island);
   }
 
-  const domains = shuffle(
-    [...new Set(
-      (await supabase.from("questions").select("domain")).data.map(
-        (d) => d.domain,
-      ),
-    )]
-  );
+  const domains = shuffle([
+    ...new Set(
+      (await supabase.from("questions").select("domain")).data.map((d) => d.domain),
+    ),
+  ]);
 
   const route = [];
   for (let o = 1; o <= 5; o++) {
@@ -290,3 +335,14 @@ module.exports = {
   invalidateAllTeamStateCache,
   buildRandomRoute,
 };
+
+// Same arrangement as utils/eventConfigCache.js: in tests the client is the
+// hand-rolled mock, and its reset() must also drop this cache or a state cached
+// by one test (a fresh lockout, say) is served to the next test's fixture.
+if (supabase && supabase.__testing && typeof supabase.__testing.reset === "function") {
+  const originalReset = supabase.__testing.reset;
+  supabase.__testing.reset = () => {
+    invalidateAllTeamStateCache();
+    return originalReset();
+  };
+}

@@ -3,7 +3,11 @@ const supabase = require("../db/supabaseClient");
 const teamModel = require("../db/teamModel");
 const { requireAdmin } = require("../middleware/auth");
 const { adminLimiter } = require("../middleware/rateLimit");
-const { invalidateTeamStateCache, invalidateAllTeamStateCache } = require("../utils/teamState");
+const {
+  invalidateTeamStateCache,
+  invalidateAllTeamStateCache,
+} = require("../utils/teamState");
+const { invalidateEventConfigCache } = require("../utils/eventConfigCache");
 
 const router = express.Router();
 
@@ -12,10 +16,13 @@ router.use(adminLimiter);
 router.post("/admin/start", requireAdmin, async (req, res) => {
   const { error } = await supabase
     .from("event_config")
-    .update({ started_at: new Date().toISOString() })
+    // Clearing ended_at lets a marshal restart after an accidental /admin/end;
+    // without it the gate stays shut forever because ended_at wins.
+    .update({ started_at: new Date().toISOString(), ended_at: null })
     .eq("id", 1);
 
   if (error) return res.status(500).json({ error: error.message });
+  invalidateEventConfigCache();
   res.json({ success: true, started_at: new Date().toISOString() });
 });
 
@@ -27,6 +34,7 @@ router.post("/admin/end", requireAdmin, async (req, res) => {
     .eq("id", 1);
 
   if (error) return res.status(500).json({ error: error.message });
+  invalidateEventConfigCache();
   res.json({ success: true, ended_at: now });
 });
 
