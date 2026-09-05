@@ -46,7 +46,7 @@ Run backend and frontend dev servers concurrently in separate terminals for loca
 - **Serverless-compatible**: `app.js` exports `module.exports = app` and only calls `.listen()` under `if (require.main === module)`, so it runs both as a standalone Node server and as a Vercel serverless function. Root dir for Vercel deploys is `backend`.
 - Errors are logged as structured JSON (timestamp, message, stack, method, url, ip, userId) in the final error-handling middleware in `app.js`.
 
-Full endpoint list, DB schema (`teams`, `islands`, `questions`, `event_config`), and SQL migrations are documented in `backend/README.md` — read it before making schema or endpoint changes.
+Endpoints are listed in the root `README.md`. The DB schema (`teams`, `islands`, `questions`, `event_config`, `announcements`), the `leaderboard` view and the `get_team_state` RPC live as SQL in `backend/db/migrations/` (apply in order; `backend/db/seed.sql` is local fixture data only). Read them before making schema or endpoint changes.
 
 ### Frontend structure
 - Routing is centralized in `src/App.jsx` using `react-router-dom`, with `ProtectedRoute` (requires `token` from `AuthContext`) and `GuestRoute` (redirects authenticated users away from landing/login) wrapper components.

@@ -86,7 +86,46 @@ jobs.
   progress, so four teammates submitting at once produce exactly one advance.
   A wrong code locks the crew; a wrong answer costs nothing.
 
-Endpoints, schema and migrations: `backend/README.md`.
+#### Endpoints
+
+All under `/api`. Team routes need a `Bearer` token from `/login`; admin
+routes need the `x-admin-secret` header; register needs `x-webhook-secret`.
+
+| Method | Path                  | Auth    | Does                                              |
+| ------ | --------------------- | ------- | ------------------------------------------------- |
+| GET    | `/event`              | none    | `started_at`, `duration_minutes`, `ended_at`      |
+| POST   | `/login`              | none    | Team name + password, returns token and team      |
+| POST   | `/team/register`      | webhook | Creates a crew and deals its random route         |
+| GET    | `/team/state`         | token   | Current stage, clue or puzzle, notice, announcement |
+| POST   | `/team/verify-code`   | token   | Station code. Wrong code locks the crew           |
+| POST   | `/team/verify-answer` | token   | Puzzle answer. Advances to the next clue          |
+| POST   | `/admin/start`        | admin   | Sets `started_at`                                 |
+| POST   | `/admin/end`          | admin   | Sets `ended_at`                                   |
+| POST   | `/admin/unlock-team`  | admin   | Clears a lockout                                  |
+| GET    | `/admin/teams`        | admin   | Every crew's progress and status                  |
+| POST   | `/admin/send-message` | admin   | Sets one crew's `notice`                          |
+| POST   | `/admin/announce`     | admin   | Inserts an announcement every crew sees           |
+| GET    | `/health`             | none    | 200 when the database answers, 503 otherwise      |
+
+#### Database
+
+The schema lives as SQL in `backend/db/migrations/`, applied in order. All
+three files are idempotent, so re-running them against an existing project is
+safe.
+
+| File                     | Creates                                                              |
+| ------------------------ | -------------------------------------------------------------------- |
+| `001_schema.sql`         | `teams`, `islands`, `questions`, `event_config`, `announcements`     |
+| `002_leaderboard.sql`    | The public `leaderboard` view, row-level security and grants         |
+| `003_get_team_state.sql` | `get_team_state(uuid)`, which serves `GET /team/state` in one query  |
+
+Apply them in the Supabase SQL editor, or with `supabase db push` if the
+project is linked. The backend works with or without `003`: when the RPC is
+missing, `utils/teamState.js` falls back to four sequential queries.
+
+`backend/db/seed.sql` is fixture data for local development only: ten islands
+across the five route slots and eight questions across four domains. Never run
+it against the event project.
 
 ### Frontend
 
