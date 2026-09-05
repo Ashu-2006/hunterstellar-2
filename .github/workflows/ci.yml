@@ -39,12 +39,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      # npm install, not npm ci, on purpose. A lockfile written on one OS does
-      # not record the other OS's optional native binaries (npm/cli#4828), so
-      # npm ci on Linux cannot install @tailwindcss/oxide or rolldown's binding
-      # and the build fails at config load. npm install still honours every
-      # locked version and only adds the platform packages that are missing.
-      - run: npm install --workspaces --include-workspace-root --no-audit --no-fund
+      # See .github/scripts/native-optionals.mjs: the lockfile is written on
+      # Windows and omits the Linux native builds (npm/cli#4828).
+      - run: npm ci --workspaces --include-workspace-root
+      - name: Native binaries the lockfile does not record for this OS
+        run: npm install --no-save --no-audit --no-fund $(node .github/scripts/native-optionals.mjs)
 
       - name: Lint
         run: npm --workspace frontend run lint
