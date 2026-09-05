@@ -52,12 +52,15 @@ export function JourneyMapSheet({ open, onClose, progress = 0 }) {
           aria-label="Open the campus map at full size"
           className="block overflow-hidden rounded-md border border-border/60 bg-surface-alt"
         >
+          {/* 39 KB WebP for the inline preview; the 745 KB PNG is only the
+              full-size link target. On venue mobile data that is the
+              difference between the map appearing with the sheet and 3-6s
+              of blank frame while a crew is walking. */}
           <img
-            src="/map.png"
+            src="/map-preview.webp"
             alt="Campus map with every station pinned"
-            width={1470}
-            height={978}
-            loading="lazy"
+            width={1000}
+            height={665}
             decoding="async"
             className="block aspect-[3/2] w-full object-cover"
           />

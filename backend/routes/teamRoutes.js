@@ -188,10 +188,15 @@ router.post(
       .eq("id", teamId);
     invalidateTeamStateCache(teamId);
 
+    // Every failure reason carries `state`, so the client adopts the fresh
+    // locked state through the same path as a success and never has to
+    // reconcile a wrong code with a stale poll.
+    const state = await getTeamStateForUser(teamId);
     return res.json({
       success: false,
       reason: "wrong_code",
       lock_until: lockUntil,
+      state,
     });
   },
 );

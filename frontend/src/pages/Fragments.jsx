@@ -51,8 +51,8 @@ export default function Fragments() {
             Mission briefing
           </h2>
           <p className="text-[13px] leading-[21px] text-text-muted">
-            Why the hunt started, and what Vilgax is after. Nothing here is
-            required reading.
+            Why the hunt started, and what Vilgax is after. Nothing here is required
+            reading.
           </p>
           <Link
             to="/prologue"
@@ -66,7 +66,8 @@ export default function Fragments() {
         <footer className="mt-auto flex w-full flex-col items-center gap-2 pt-6">
           <Wordmark width={180} />
           <p className="text-center text-[12px] leading-[18px] text-text-muted">
-            Presented by <span className="font-semibold">ASTRONOMY &amp; PHYSICS SOCIETY</span>
+            Presented by{' '}
+            <span className="font-semibold">ASTRONOMY &amp; PHYSICS SOCIETY</span>
           </p>
         </footer>
       </div>

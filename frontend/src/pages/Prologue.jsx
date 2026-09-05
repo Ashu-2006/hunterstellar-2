@@ -24,7 +24,13 @@ export default function Prologue() {
   // for a crew to be sent somewhere they did not ask to go. Leaving goes back
   // to wherever they came from, falling back to the clue.
   const leave = useCallback(() => {
-    navigate(-1)
+    // navigate(-1) is a no-op when this is the first entry in the tab (a shared
+    // link, a home-screen launch), which left Skip and "Begin the hunt" dead.
+    // React Router stamps its own index on history.state; 0 means no earlier
+    // in-app entry to return to.
+    const idx = window.history.state?.idx
+    if (typeof idx === 'number' && idx > 0) navigate(-1)
+    else navigate('/journey', { replace: true })
   }, [navigate])
 
   const advance = useCallback(() => {

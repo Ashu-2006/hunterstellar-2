@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RemoteImage } from '../ui/RemoteImage'
 
 /**
@@ -25,6 +25,9 @@ export function PuzzleCard({
 }) {
   const [answer, setAnswer] = useState('')
   const stop = Math.min(Math.max(progress, 0), 4)
+
+  // Same contract as ClueCard: an unmounted input is not dirty.
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   function update(value) {
     setAnswer(value)

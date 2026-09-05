@@ -16,7 +16,9 @@ router.use(adminLimiter);
 router.post("/admin/start", requireAdmin, async (req, res) => {
   const { error } = await supabase
     .from("event_config")
-    .update({ started_at: new Date().toISOString() })
+    // Clearing ended_at lets a marshal restart after an accidental /admin/end;
+    // without it the gate stays shut forever because ended_at wins.
+    .update({ started_at: new Date().toISOString(), ended_at: null })
     .eq("id", 1);
 
   if (error) return res.status(500).json({ error: error.message });

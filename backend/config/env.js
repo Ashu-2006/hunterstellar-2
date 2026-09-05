@@ -34,7 +34,29 @@ const OPTIONAL = [
   ["EMAIL_FROM", "welcome emails fall back to a placeholder sender"],
   ["PORT", "defaults to 3005"],
   ["TRUST_PROXY_HOPS", "defaults to 1, correct behind a single proxy"],
+  [
+    "RPC_HAS_IMAGES",
+    "set to true once migration 003 is deployed, skips the image hydration query",
+  ],
 ];
+
+/**
+ * A blank or malformed TRUST_PROXY_HOPS used to become 0 or NaN through
+ * Number(), which silently disabled trust proxy and collapsed every player
+ * onto the proxy's IP for rate limiting. Blank means "use the default";
+ * anything else that is not a whole number is a configuration error.
+ */
+function readTrustProxyHops() {
+  const raw = process.env.TRUST_PROXY_HOPS;
+  if (raw === undefined || raw.trim() === "") return 1;
+  const n = Number(raw.trim());
+  if (!Number.isInteger(n) || n < 0) {
+    throw new Error(
+      `TRUST_PROXY_HOPS must be a whole number of proxies (got ${JSON.stringify(raw)}).`,
+    );
+  }
+  return n;
+}
 
 function readEnv() {
   const missing = REQUIRED.filter(([key]) => {
@@ -81,7 +103,7 @@ function readEnv() {
     // unless this is set, which collapses every player onto one rate-limit key.
     // Keep it at the exact number of proxies in front of the app; `true` would
     // let clients spoof X-Forwarded-For and dodge the limiter entirely.
-    trustProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? 1),
+    trustProxyHops: readTrustProxyHops(),
 
     isProduction: process.env.NODE_ENV === "production",
     isTest: process.env.NODE_ENV === "test",

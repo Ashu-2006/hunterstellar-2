@@ -101,9 +101,9 @@ async function registerTeams() {
   );
   const elapsed = Date.now() - t0;
 
-  log("register", `Done in ${elapsed}ms — ${ok}/${TEAM_COUNT} registered`);
+  log("register", `Done in ${elapsed}ms, ${ok}/${TEAM_COUNT} registered`);
   if (failed.length > 0) {
-    log("register", `${failed.length} failures — first 5:`);
+    log("register", `${failed.length} failures, first 5:`);
     failed.slice(0, 5).forEach((f) => {
       if (f.status === "rejected")
         log("register", `  rejected: ${f.reason?.message || f.reason}`);
@@ -153,7 +153,7 @@ async function loginTeams() {
     const loggedIn = tokens.filter(Boolean).length;
     log(
       "login",
-      `batch ${batchNum}/${totalBatches} — ${loggedIn}/${TEAM_COUNT} tokens so far`,
+      `batch ${batchNum}/${totalBatches}, ${loggedIn}/${TEAM_COUNT} tokens so far`,
     );
 
     if (batchEnd < TEAM_COUNT) {
@@ -165,7 +165,7 @@ async function loginTeams() {
   const elapsed = Date.now() - t0;
   log(
     "login",
-    `Done in ${(elapsed / 1000).toFixed(1)}s — ${tokens.filter(Boolean).length}/${TEAM_COUNT} tokens obtained`,
+    `Done in ${(elapsed / 1000).toFixed(1)}s, ${tokens.filter(Boolean).length}/${TEAM_COUNT} tokens obtained`,
   );
   return tokens;
 }
@@ -180,7 +180,7 @@ async function measure(label, fn) {
 }
 
 async function runLoadPhase(label, requests) {
-  log("load", `── ${label} — ${requests.length} concurrent requests ──`);
+  log("load", `── ${label}, ${requests.length} concurrent requests ──`);
   const t0 = Date.now();
 
   const settled = await Promise.allSettled(requests);
@@ -209,7 +209,7 @@ async function runLoadPhase(label, requests) {
 async function runLoadTests(tokens) {
   const validTokens = tokens.filter(Boolean);
   if (validTokens.length === 0) {
-    log("load", "No tokens available — skipping authenticated load tests");
+    log("load", "No tokens available, skipping authenticated load tests");
     return [];
   }
 
@@ -310,7 +310,7 @@ async function runLoadTests(tokens) {
 
 function printSummary(results) {
   console.log("\n" + "═".repeat(72));
-  console.log("  LOAD TEST SUMMARY — " + BASE_URL);
+  console.log("  LOAD TEST SUMMARY, " + BASE_URL);
   console.log("═".repeat(72));
 
   for (const r of results) {
@@ -334,18 +334,18 @@ function printSummary(results) {
 
 async function main() {
   console.log("╔══════════════════════════════════════════════════════════════════╗");
-  console.log("║  Odyssey Live Load Test — 150 Concurrent Teams                 ║");
+  console.log("║  Odyssey Live Load Test, 150 Concurrent Teams                 ║");
   console.log("║  Target: " + BASE_URL.padEnd(52) + "║");
   console.log("╚══════════════════════════════════════════════════════════════════╝\n");
 
   // Phase 1: register
   const registered = await registerTeams();
   if (registered === 0) {
-    console.error("No teams registered — aborting.");
+    console.error("No teams registered, aborting.");
     process.exit(1);
   }
 
-  // Phase 2: login (slow — rate limited)
+  // Phase 2: login (slow, rate limited)
   const tokens = await loginTeams();
 
   // Phase 3: load test
@@ -355,7 +355,7 @@ async function main() {
   if (results.length > 0) printSummary(results);
 
   console.log("\nTest teams have prefix:", PREFIX);
-  console.log("They remain in the database — clean up manually if needed.");
+  console.log("They remain in the database, clean up manually if needed.");
 }
 
 main().catch((err) => {

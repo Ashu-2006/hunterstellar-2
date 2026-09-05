@@ -60,7 +60,7 @@ export function Button({
       type={type}
       disabled={disabled}
       className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-md
-        transition-colors duration-[--duration-instant] ease-standard
+        transition-colors duration-(--duration-instant) ease-standard
         disabled:cursor-not-allowed disabled:opacity-60
         focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
         focus-visible:outline-accent

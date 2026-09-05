@@ -12,7 +12,19 @@ const PORT = env.port;
 
 app.set("trust proxy", env.trustProxyHops);
 
-app.use(cors());
+// The frontend is served from a different origin than the API, so the
+// rate-limit headers must be listed here or the browser hides them and the
+// client falls back to a guessed 60s countdown against a 15 minute window.
+app.use(
+  cors({
+    exposedHeaders: [
+      "RateLimit-Limit",
+      "RateLimit-Remaining",
+      "RateLimit-Reset",
+      "Retry-After",
+    ],
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("combined"));

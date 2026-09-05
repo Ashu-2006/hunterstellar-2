@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Images } from 'lucide-react'
 import { RemoteImage } from '../ui/RemoteImage'
 import { LOCKOUT_MINUTES } from '../../config/rules'
@@ -35,6 +35,11 @@ export function ClueCard({
   const [code, setCode] = useState('')
   const stop = Math.min(Math.max(progress, 0), 4)
   const extra = Math.max(images.length - 1, 0)
+
+  // The typed value dies with this card (a lockout or a stage change unmounts
+  // it), so the dirty flag the parent holds must die with it too. Otherwise the
+  // parent keeps "holding for typing" over an input that no longer exists.
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   function update(value) {
     setCode(value)

@@ -22,6 +22,16 @@ const CACHE_TTL_MS = 2000;
 // correct whether or not the DB function has been updated yet.
 const HYDRATE_RPC_IMAGES = process.env.RPC_HAS_IMAGES !== "true";
 
+/**
+ * Whether the RPC payload already carries the image arrays. Migration 003
+ * returns them (empty or not) on every clue and puzzle state, so once it is
+ * deployed the hydration round trips stop on their own; the flag above only
+ * matters for a function that predates 003 and omits the keys entirely.
+ */
+function rpcReturnedImages(raw) {
+  return Array.isArray(raw?.clue_images) || Array.isArray(raw?.question_images);
+}
+
 function invalidateTeamStateCache(userId) {
   if (userId) STATE_CACHE.delete(String(userId));
 }
@@ -138,8 +148,7 @@ async function getTeamStateForUser(userId) {
         // Handle stale lock: if RPC still says locked but lock expired, fix row and retry once
         if (
           data.stage === "locked" &&
-          data.lock_until &&
-          new Date(data.lock_until) <= new Date()
+          (!data.lock_until || new Date(data.lock_until) <= new Date())
         ) {
           await supabase
             .from("teams")
@@ -150,10 +159,12 @@ async function getTeamStateForUser(userId) {
           // One retry via RPC (avoid infinite loop)
           const retry = await supabase.rpc("get_team_state", { p_user_id: userId });
           if (!retry.error && retry.data) {
-            let r = normalizeState(
-              typeof retry.data === "string" ? JSON.parse(retry.data) : retry.data,
-            );
-            if (HYDRATE_RPC_IMAGES) r = await hydrateStopImages(r, userId);
+            const retryRaw =
+              typeof retry.data === "string" ? JSON.parse(retry.data) : retry.data;
+            let r = normalizeState(retryRaw);
+            if (HYDRATE_RPC_IMAGES && !rpcReturnedImages(retryRaw)) {
+              r = await hydrateStopImages(r, userId);
+            }
             return cacheState(cacheKey, r);
           }
         }
@@ -162,13 +173,15 @@ async function getTeamStateForUser(userId) {
           // Fall through to sequential fallback which returns 404
         } else {
           let state = normalizeState(data);
-          if (HYDRATE_RPC_IMAGES) state = await hydrateStopImages(state, userId);
+          if (HYDRATE_RPC_IMAGES && !rpcReturnedImages(data)) {
+            state = await hydrateStopImages(state, userId);
+          }
           return cacheState(cacheKey, state);
         }
       }
     }
   } catch (_) {
-    // RPC not deployed yet — fall through to sequential path
+    // RPC not deployed yet, fall through to sequential path
   }
 
   // --- Sequential fallback (keeps behavior before RPC was deployed) ---
@@ -186,7 +199,8 @@ async function getTeamStateForUser(userId) {
     .maybeSingle();
   const announcement = latestAnnouncement?.message || null;
 
-  const { password, route, ...safeTeam } = team;
+  // session_token stays server-side: it is what a superseded device lacks.
+  const { password, route, session_token, ...safeTeam } = team;
   const currentStop = team.route?.[team.progress];
   const notice = team.notice || null;
 
@@ -321,3 +335,14 @@ module.exports = {
   invalidateAllTeamStateCache,
   buildRandomRoute,
 };
+
+// Same arrangement as utils/eventConfigCache.js: in tests the client is the
+// hand-rolled mock, and its reset() must also drop this cache or a state cached
+// by one test (a fresh lockout, say) is served to the next test's fixture.
+if (supabase && supabase.__testing && typeof supabase.__testing.reset === "function") {
+  const originalReset = supabase.__testing.reset;
+  supabase.__testing.reset = () => {
+    invalidateAllTeamStateCache();
+    return originalReset();
+  };
+}

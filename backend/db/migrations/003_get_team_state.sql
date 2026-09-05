@@ -33,9 +33,11 @@ begin
 
   safe_team := (
     select to_json(x) from (
+      -- No password, route or session_token: this object is sent to every
+      -- device holding a valid token, including a superseded one.
       select t.id, t.team_name, t.team_leader, t.members, t.email, t.progress,
              t.stage, t.status, t.lock_until, t.wrong_attempts, t.notice,
-             t.last_correct_at, t.session_token, t.created_at
+             t.last_correct_at, t.created_at
     ) x
   );
 

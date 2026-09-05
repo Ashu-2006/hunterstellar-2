@@ -27,7 +27,7 @@ export default function Login() {
       const reason = sessionStorage.getItem(SESSION_NOTICE_KEY)
       if (reason) sessionStorage.removeItem(SESSION_NOTICE_KEY)
       if (reason === 'replaced') {
-        return 'Your team signed in on another device. Only one device can play at a time — log in again to take over.'
+        return 'Your team signed in on another device. Only one device can play at a time, log in again to take over.'
       }
       if (reason === 'expired') {
         return 'Your session expired. Log in again to pick up where you left off.'

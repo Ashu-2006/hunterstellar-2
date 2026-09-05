@@ -128,7 +128,7 @@ describe("POST /api/login", () => {
     expect(res.body.error).toMatch(/invalid password/i);
   });
 
-  test("200 with valid credentials — returns user and signed JWT", async () => {
+  test("200 with valid credentials, returns user and signed JWT", async () => {
     const res = await request(app)
       .post("/api/login")
       .send({ team_name: "Celestials", password: PASSWORD });

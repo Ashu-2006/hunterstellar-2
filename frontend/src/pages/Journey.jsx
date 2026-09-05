@@ -100,11 +100,20 @@ export default function Dashboard() {
     }
   }
 
-  // Drives the rate-limit countdown and the stale timestamp.
+  // Drives the rate-limit countdown and the stale timestamp. Only runs while
+  // one of them is on screen: an unconditional 1Hz tick re-rendered the whole
+  // journey tree every second for a three-hour hunt to animate nothing. The
+  // first tick is deferred a frame so the effect body itself sets no state.
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
-  }, [])
+    if (!rateLimitedUntil && !error) return undefined
+    const tick = () => setNow(Date.now())
+    const first = setTimeout(tick, 0)
+    const t = setInterval(tick, 1000)
+    return () => {
+      clearTimeout(first)
+      clearInterval(t)
+    }
+  }, [rateLimitedUntil, error])
 
   // Transient messages expire on their own. The slot auto-opens for them, so
   // one that outlived its relevance would sit there holding the screen open.
@@ -234,8 +243,11 @@ export default function Dashboard() {
       }
 
       if (data.reason === 'wrong_code') {
-        // The input keeps its value on purpose, so `inputDirty` stays true.
-        // `adopt` resyncs heldStage so this does not read as a teammate's move.
+        // The lockout screen replaces the card, so whatever was typed is gone
+        // with it; a dirty flag left behind would make the poll that ends the
+        // lock read as "a teammate moved the crew". The server sends `state`
+        // on this path, so adopt() resyncs heldStage as well.
+        setInputDirty(false)
         if (data.state) adopt(data.state)
         else refetch()
         return false
@@ -427,6 +439,7 @@ export default function Dashboard() {
     body = (
       <PuzzleCard
         question={state.question}
+        images={state.question_images || []}
         progress={progress}
         onSubmit={submitAnswer}
         loading={submitting}

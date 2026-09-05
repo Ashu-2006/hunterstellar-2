@@ -111,7 +111,7 @@ export function StatusSlot({ items = [] }) {
             )}
             <ChevronDown
               aria-hidden="true"
-              className={`w-4 h-4 shrink-0 ${text} transition-transform duration-[--duration-base] ease-standard ${
+              className={`w-4 h-4 shrink-0 ${text} transition-transform duration-(--duration-base) ease-standard ${
                 open ? 'rotate-180' : ''
               }`}
               strokeWidth={2}

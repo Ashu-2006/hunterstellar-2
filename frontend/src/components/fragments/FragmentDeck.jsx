@@ -46,10 +46,12 @@ function EarnedCard({ index, defaultOpen }) {
         aria-controls={regionId}
         className={`${HEAD_ROW} motion-press cursor-pointer text-left focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-1 focus-visible:outline-accent`}
       >
-        <span className={`${TITLE} ${open ? 'text-accent' : 'text-text-muted'}`}>{label}</span>
+        <span className={`${TITLE} ${open ? 'text-accent' : 'text-text-muted'}`}>
+          {label}
+        </span>
         <ChevronDown
           aria-hidden="true"
-          className={`ease-standard h-4 w-4 shrink-0 transition-transform duration-[--duration-base] ${
+          className={`ease-standard h-4 w-4 shrink-0 transition-transform duration-(--duration-base) ${
             open ? 'rotate-180 text-accent' : 'text-text-muted'
           }`}
           strokeWidth={1.33}
@@ -102,11 +104,12 @@ export function FragmentDeck({ unlocked = 0 }) {
     // this screen will hold rather than apologising for being blank.
     return (
       <div className="flex w-full flex-col gap-3 border border-dashed border-border bg-surface/40 px-5 py-8">
-        <h2 className="display-grunge text-[26px] text-text-primary">Nothing recovered yet</h2>
+        <h2 className="display-grunge text-[26px] text-text-primary">
+          Nothing recovered yet
+        </h2>
         <p className="text-[14px] leading-relaxed text-text-secondary">
-          Each station holds one fragment of the Ultimate Power. Solve a
-          station&rsquo;s challenge and its log lands here, readable for the
-          rest of the hunt.
+          Each station holds one fragment of the Ultimate Power. Solve a station&rsquo;s
+          challenge and its log lands here, readable for the rest of the hunt.
         </p>
         <p className="text-[13px] text-text-muted">
           Four fragments, four pieces of the same picture.
